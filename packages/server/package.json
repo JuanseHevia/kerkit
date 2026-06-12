@@ -1,0 +1,56 @@
+{
+  "name": "@kerkit/server",
+  "version": "0.1.0",
+  "description": "Server toolkit for caretaker apps: Drizzle schema factory, repository implementations, privacy route factories (consent/export/delete) with audit, and cron job skeletons. Bring your own auth.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JuanseHevia/kerkit.git",
+    "directory": "packages/server"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "dev": "tsc --watch --preserveWatchOutput",
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@kerkit/core": "0.1.0",
+    "zod": "^3.24.0"
+  },
+  "peerDependencies": {
+    "drizzle-orm": ">=0.38.0",
+    "express": ">=4.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/supertest": "^6.0.0",
+    "drizzle-orm": "^0.39.0",
+    "express": "^5.1.0",
+    "supertest": "^7.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "keywords": [
+    "drizzle",
+    "express",
+    "privacy",
+    "caretaker",
+    "postgres"
+  ]
+}
