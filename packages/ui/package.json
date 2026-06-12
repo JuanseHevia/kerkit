@@ -1,0 +1,49 @@
+{
+  "name": "@kerkit/ui",
+  "version": "0.1.0",
+  "description": "\"Calm Confidence\" design tokens and React Native components for caretaker apps. Tokens are framework-agnostic; components target React Native.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JuanseHevia/kerkit.git",
+    "directory": "packages/ui"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./tokens": {
+      "types": "./dist/tokens/index.d.ts",
+      "default": "./dist/tokens/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "dev": "tsc --watch --preserveWatchOutput",
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@kerkit/core": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "keywords": [
+    "design-tokens",
+    "react-native",
+    "caretaker",
+    "design-system"
+  ]
+}

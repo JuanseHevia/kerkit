@@ -1,0 +1,47 @@
+{
+  "name": "@kerkit/pack-argentina",
+  "version": "0.1.0",
+  "description": "Argentina locale pack for kerkit: es-AR strings (voseo), obra social model, email signal patterns, DNI/CUIL redaction rules, and Ley 25.326 guidance. The reference implementation of the LocalePack interface.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JuanseHevia/kerkit.git",
+    "directory": "packages/pack-argentina"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "dev": "tsc --watch --preserveWatchOutput",
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@kerkit/core": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "keywords": [
+    "argentina",
+    "obra-social",
+    "es-AR",
+    "locale",
+    "caretaker"
+  ]
+}
