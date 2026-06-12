@@ -130,9 +130,13 @@ export function signalsSource(repos: KerkitRepositories, pack: LocalePack): Cont
 }
 
 /** All default sources, ready for `new ContextAssembler({pack}).add(...)`. */
-export function defaultSources(repos: KerkitRepositories, pack: LocalePack): ContextSource[] {
+export function defaultSources(
+  repos: KerkitRepositories,
+  pack: LocalePack,
+  opts: { now?: () => Date } = {},
+): ContextSource[] {
   return [
-    appointmentsSource(repos, pack),
+    appointmentsSource(repos, pack, opts),
     prescriptionsSource(repos, pack),
     authorizationsSource(repos, pack),
     notesSource(repos, pack),

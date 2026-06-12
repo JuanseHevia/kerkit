@@ -23,6 +23,10 @@
     "./openai": {
       "types": "./dist/providers/openai-responses.d.ts",
       "default": "./dist/providers/openai-responses.js"
+    },
+    "./demo": {
+      "types": "./dist/test-helpers.d.ts",
+      "default": "./dist/test-helpers.js"
     }
   },
   "files": [
