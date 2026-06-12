@@ -23,11 +23,13 @@ A caretaker accompanying a chemo patient carries a second job: tracking authoriz
 
 | Package | What it is | Status |
 |---|---|---|
-| `@kerkit/core` | Entities, Zod schemas, authorization state machine, care-event taxonomy, **privacy primitives** (classification, redaction, consent, audit), locale-pack interface, synthetic fixtures | 🚧 0.x |
-| `@kerkit/pack-argentina` | es-AR strings (voseo), obra social model, signal patterns, AR identifier redaction rules, Ley 25.326 docs | planned |
-| `@kerkit/ai` | ContextAssembler (redaction-enforced caretaker context window), provider-agnostic tool-calling loop, MCP tool toolkit, prompt conventions | planned |
-| `@kerkit/ui` | "Calm Confidence" design tokens + React Native components | planned |
-| `@kerkit/server` | Drizzle schema factory, repositories, consent/export/delete route factories, audit middleware | planned |
+| `@kerkit/core` | Entities, Zod schemas, authorization state machine, care-event taxonomy, **privacy primitives** (classification, redaction, consent, audit), repository interfaces, locale-pack interface, synthetic fixtures | 🚧 0.x |
+| `@kerkit/pack-argentina` | es-AR strings (voseo), obra social model, signal patterns, AR identifier redaction rules, Ley 25.326 docs | 🚧 0.x |
+| `@kerkit/ai` | ContextAssembler (redaction-enforced caretaker context window), provider-agnostic tool-calling loop, MCP tool toolkit, prompt conventions | 🚧 0.x |
+| `@kerkit/ui` | "Calm Confidence" design tokens (React Native components land in waves) | 🚧 0.x |
+| `@kerkit/server` | Drizzle schema factory, repositories, consent/export/delete route factories with audit, cron skeletons | 🚧 0.x |
+
+**Try it in two minutes** — [`examples/minimal-caretaker`](./examples/minimal-caretaker) runs the whole stack (context window, tool-calling chat, privacy endpoints) with no database, no OAuth, and no LLM key.
 
 ## Privacy is code here, not a paragraph
 
