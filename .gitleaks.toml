@@ -1,0 +1,43 @@
+# kerkit PII gate.
+#
+# This repo models caretaker-authored health logistics data, so the bar for
+# what counts as a leak is stricter than for a typical codebase: any
+# real-looking Argentine identifier is treated as a finding unless it matches
+# the canonical synthetic persona defined in @kerkit/core/fixtures.
+#
+# Maintainers: keep your private blocklist (real names, affiliate numbers)
+# OUTSIDE this repo and wire it in via `gitleaks --config` overlay locally.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "ar-dni"
+description = "Argentine DNI (7-8 digits, optionally dot-separated)"
+regex = '''\b\d{1,2}\.\d{3}\.\d{3}\b|\bDNI:?\s*\d{7,8}\b'''
+keywords = ["dni"]
+
+[[rules.allowlists]]
+regexes = [
+  # The canonical synthetic persona (see packages/core/src/fixtures).
+  '''12\.345\.678''',
+  '''DNI:?\s*12345678''',
+]
+
+[[rules]]
+id = "ar-cuil-cuit"
+description = "Argentine CUIL/CUIT (XX-XXXXXXXX-X)"
+regex = '''\b(20|23|24|27|30|33|34)-?\d{8}-?\d\b'''
+
+[[rules.allowlists]]
+regexes = [
+  # Synthetic persona CUIL.
+  '''27-?12345678-?\d''',
+]
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+  '''package-lock\.json''',
+  '''\.changeset/.*\.md''',
+]

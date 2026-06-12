@@ -1,0 +1,26 @@
+kerkit
+Copyright 2026 Juan Segundo Hevia
+
+This product includes software developed as part of the kerkit project
+(https://github.com/JuanseHevia/kerkit).
+
+---
+
+IMPORTANT — SCOPE OF THIS SOFTWARE
+
+kerkit is NOT a medical device and does NOT provide medical advice,
+diagnosis, or treatment. It is a software development kit for building
+applications that help caretakers organize the *logistics* of caring for
+a loved one: appointments, paperwork, insurance authorizations,
+prescriptions-as-documents, and personal notes.
+
+Data modeled by kerkit is caretaker-authored logistics data. It is not a
+clinical record (historia clínica) in the sense of Argentine Ley 26.529
+or equivalent regulations elsewhere, and kerkit must not be used as a
+system of record for clinical care.
+
+Applications built with kerkit handle personal data. In Argentina they
+are subject to Ley 25.326 (Protección de los Datos Personales). kerkit
+ships privacy primitives (data classification, redaction before LLM
+calls, consent, export and deletion) to make compliance easier, but the
+legal responsibility for compliance rests with the application operator.

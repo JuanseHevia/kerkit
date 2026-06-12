@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pii-scan:
+    name: PII / secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  build-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+      - run: npm run test
+
+  pack-audit:
+    name: npm pack content audit
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # Assert that no tarball ships data outside the synthetic persona:
+      # any DNI-shaped string in packed output must be the fixture one.
+      - name: Audit packed tarballs for non-synthetic identifiers
+        run: |
+          set -euo pipefail
+          for pkg in packages/*; do
+            [ -f "$pkg/package.json" ] || continue
+            if node -e "process.exit(require('./$pkg/package.json').private ? 1 : 0)"; then
+              tarball=$(cd "$pkg" && npm pack --silent)
+              mkdir -p /tmp/pack-audit && tar -xzf "$pkg/$tarball" -C /tmp/pack-audit
+              if grep -rEoh '\b[0-9]{1,2}\.[0-9]{3}\.[0-9]{3}\b' /tmp/pack-audit | grep -v '12\.345\.678'; then
+                echo "::error::Non-synthetic DNI-shaped identifier found in $tarball"
+                exit 1
+              fi
+              rm -rf /tmp/pack-audit "$pkg/$tarball"
+            fi
+          done
