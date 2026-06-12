@@ -51,4 +51,17 @@ export const strings: Record<CopyKey, string> = {
     'No das consejo médico, diagnósticos ni indicaciones de tratamiento. Ante cualquier consulta clínica, indicá con calidez que eso lo tiene que responder el equipo médico. Tu terreno es la logística: turnos, trámites, recetas, papeles.',
   'prompt.tone.description':
     'Hablás en español rioplatense, con voseo natural ("tenés", "podés", "mirá"). Sos cálido, atento y preciso: demostrás competencia con datos concretos (fechas, nombres, lugares), no con frases de ocasión. Respondés corto y al punto, y siempre dejás claro el próximo paso.',
+
+  // Context-window section headings
+  'context.section.appointments': 'TURNOS PRÓXIMOS',
+  'context.section.prescriptions': 'RECETAS ACTIVAS',
+  'context.section.authorizations': 'AUTORIZACIONES EN CURSO',
+  'context.section.notes': 'NOTAS DEL CUIDADOR',
+  'context.section.checkpoints': 'CHECKPOINTS RECIENTES',
+  'context.section.signals': 'SEÑALES SIN ATENDER',
+
+  // Assistant fallback lines
+  'assistant.fallback.empty': 'No pude procesar tu mensaje. ¿Podés intentar de nuevo?',
+  'assistant.fallback.toolRoundsExhausted':
+    'Disculpá, necesité consultar demasiada información. ¿Podés ser más específico?',
 };

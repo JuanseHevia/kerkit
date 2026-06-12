@@ -40,6 +40,16 @@ export const COPY_KEYS = [
   'prompt.privacy.transparency',
   'prompt.boundaries.notMedicalAdvice',
   'prompt.tone.description',
+  // Context-window section headings (used by @kerkit/ai's ContextAssembler)
+  'context.section.appointments',
+  'context.section.prescriptions',
+  'context.section.authorizations',
+  'context.section.notes',
+  'context.section.checkpoints',
+  'context.section.signals',
+  // Assistant fallback lines
+  'assistant.fallback.empty',
+  'assistant.fallback.toolRoundsExhausted',
 ] as const;
 
 export type CopyKey = (typeof COPY_KEYS)[number];

@@ -1,0 +1,57 @@
+{
+  "name": "@kerkit/ai",
+  "version": "0.1.0",
+  "description": "AI layer for caretaker apps: redaction-enforced context assembly, a provider-agnostic tool-calling loop, MCP tool toolkit, and prompt conventions. Privacy is enforced at the assembly boundary.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JuanseHevia/kerkit.git",
+    "directory": "packages/ai"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "default": "./dist/mcp/index.js"
+    },
+    "./openai": {
+      "types": "./dist/providers/openai-responses.d.ts",
+      "default": "./dist/providers/openai-responses.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "dev": "tsc --watch --preserveWatchOutput",
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@kerkit/core": "0.1.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@kerkit/pack-argentina": "0.1.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "keywords": [
+    "llm",
+    "mcp",
+    "context-assembly",
+    "tool-calling",
+    "caretaker",
+    "privacy"
+  ]
+}
