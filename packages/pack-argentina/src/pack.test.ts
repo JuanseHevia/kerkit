@@ -64,6 +64,83 @@ describe('signal patterns', () => {
     }
   });
 
+  // A reference corpus distilled from real obra social / clínica / recetario
+  // emails, fully anonymized (synthetic persona + brand-neutral senders). It
+  // exercises the medication chain (receta → orden → autorización →
+  // preparación → entrega) and the turno/resultado loop. Keeping it here makes
+  // classification accuracy measurable and regression-proof.
+  const classify = (sender: string, subject: string): string => {
+    const matches = (argentina.signalPatterns ?? [])
+      .filter(
+        (p) =>
+          new RegExp(p.senderPattern, 'i').test(sender) &&
+          new RegExp(p.subjectPattern, 'i').test(subject),
+      )
+      .sort((a, b) => b.priority - a.priority);
+    return matches[0]?.signalType ?? 'unknown';
+  };
+
+  describe('reference corpus (anonymized real-world subjects)', () => {
+    const corpus: Array<{ sender: string; subject: string; expected: string }> = [
+      // Medication chain
+      {
+        sender: 'prescripciones@recetario.example.com',
+        subject: 'Nueva receta - Pérez, Marta - Obra Social Demo',
+        expected: 'prescription_detected',
+      },
+      {
+        sender: 'prescripciones@recetario.example.com',
+        subject: 'Nueva orden - Pérez, Marta - Obra Social Demo',
+        expected: 'prescription_detected',
+      },
+      {
+        sender: 'comunicaciones@info.demosalud.example.com',
+        subject: 'M. Pérez, ya podés descargar tus autorizaciones aprobadas.',
+        expected: 'auth_approved',
+      },
+      {
+        sender: 'comunicaciones@info.demosalud.example.com',
+        subject: 'Estamos preparando tu pedido de medicación',
+        expected: 'auth_preparing',
+      },
+      {
+        sender: 'comunicaciones@info.demosalud.example.com',
+        subject: 'Tu pedido de medicación está listo para entregar',
+        expected: 'med_ready_for_pickup',
+      },
+      // Turnos & resultados
+      {
+        sender: 'recordatorioturno@clinicademo.example.com',
+        subject: 'Recordatorio Turno Diagnóstico por imágenes',
+        expected: 'appointment_reminder',
+      },
+      {
+        sender: 'notificaciones@clinicademo.example.com',
+        subject: 'Demo - Resultados de estudio',
+        expected: 'report_available',
+      },
+    ];
+
+    it.each(corpus)('classifies "$subject" as $expected', ({ sender, subject, expected }) => {
+      expect(classify(sender, subject)).toBe(expected);
+    });
+
+    it('is invariant to a forwarded "Fwd:" subject prefix', () => {
+      for (const { sender, subject, expected } of corpus) {
+        expect(classify(sender, `Fwd: ${subject}`), subject).toBe(expected);
+      }
+    });
+
+    it('leaves a claim (reclamo) unclassified — Claim is a planned primitive, see docs/domain-fidelity-review.md', () => {
+      expect(classify('soportecas@demosalud.example.com', 'Reclamo 12345678/01')).toBe('unknown');
+    });
+
+    it('does not misclassify an unrelated reminder (sender gating)', () => {
+      // A non-medical "cita" reminder must not become a medical turno.
+      expect(classify('donotreply@usvisa-info.example.com', 'Recordatorio de cita')).toBe('unknown');
+    });
+  });
+
   it('does not reference any real institution in patterns or actions', () => {
     const all = JSON.stringify(argentina.signalPatterns);
     for (const real of ['omint', 'fleming', 'fleni', 'osde', 'scienza']) {

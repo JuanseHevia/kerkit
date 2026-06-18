@@ -12,24 +12,26 @@ import type { SignalPattern } from '@kerkit/core';
  */
 export const signalPatterns: SignalPattern[] = [
   {
-    senderPattern: 'autorizaciones|obra ?social|prestaciones',
-    subjectPattern: 'aprobad[ao]|autorizad[ao]',
+    // Approval emails often arrive from a generic "comunicaciones@" address,
+    // not only an "autorizaciones@" one.
+    senderPattern: 'autorizaciones|obra ?social|prestaciones|comunicaciones',
+    subjectPattern: 'aprobad[ao]|autorizad[ao]|autorizaci[oó]n(es)? aprobad',
     signalType: 'auth_approved',
     suggestedActionTemplate: 'La autorización fue aprobada. Marcala como confirmada en el trámite.',
     priority: 10,
   },
   {
-    senderPattern: 'autorizaciones|obra ?social|prestaciones',
-    subjectPattern: 'en preparaci[oó]n|procesando',
+    senderPattern: 'autorizaciones|obra ?social|prestaciones|comunicaciones',
+    subjectPattern: 'en preparaci[oó]n|preparando|procesando',
     signalType: 'auth_preparing',
-    suggestedActionTemplate: 'La obra social está preparando la autorización. No hace falta hacer nada todavía.',
+    suggestedActionTemplate: 'La obra social está preparando el pedido. No hace falta hacer nada todavía.',
     priority: 8,
   },
   {
-    senderPattern: 'autorizaciones|farmacia|droguer[ií]a',
-    subjectPattern: 'list[oa] para retir|disponible para retir|disponible',
+    senderPattern: 'autorizaciones|farmacia|droguer[ií]a|comunicaciones|provisi[oó]n',
+    subjectPattern: 'list[oa] para retir|list[oa] para entregar|para entregar|disponible para retir|disponible',
     signalType: 'med_ready_for_pickup',
-    suggestedActionTemplate: 'La medicación está lista para retirar. Coordiná el retiro antes de la próxima sesión.',
+    suggestedActionTemplate: 'La medicación está lista para retirar o entregar. Coordiná la entrega antes de la próxima sesión.',
     priority: 9,
   },
   {
@@ -68,7 +70,8 @@ export const signalPatterns: SignalPattern[] = [
     priority: 10,
   },
   {
-    senderPattern: 'im[aá]genes|diagn[oó]stico|resultados',
+    // Result notifications frequently come from a generic "notificaciones@".
+    senderPattern: 'im[aá]genes|diagn[oó]stico|resultados|notificaciones',
     subjectPattern: 'informe|resultado|estudio',
     signalType: 'report_available',
     suggestedActionTemplate: 'Hay un informe disponible. Descargalo y guardalo para la próxima consulta.',
@@ -82,10 +85,11 @@ export const signalPatterns: SignalPattern[] = [
     priority: 7,
   },
   {
+    // "Nueva receta" and "Nueva orden" both originate the medication chain.
     senderPattern: 'recetario|prescripci[oó]n|recetas?',
-    subjectPattern: 'receta|prescripci[oó]n',
+    subjectPattern: 'receta|prescripci[oó]n|nueva orden|\\borden\\b',
     signalType: 'prescription_detected',
-    suggestedActionTemplate: 'Llegó una receta nueva. Cargala para seguir su vencimiento y la autorización si hace falta.',
+    suggestedActionTemplate: 'Llegó una receta u orden nueva. Cargala para seguir su vencimiento y la autorización si hace falta.',
     priority: 8,
   },
   {
