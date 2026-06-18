@@ -11,6 +11,8 @@ export {
   noteClassification,
   authorizationClassification,
   checkpointClassification,
+  taskClassification,
+  checklistClassification,
   institutionClassification,
   personClassification,
   signalClassification,

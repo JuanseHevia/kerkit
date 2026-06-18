@@ -24,6 +24,8 @@ export type SchemaExtensions = Partial<
     | 'authorizations'
     | 'authorizationTimelineEntries'
     | 'checkpoints'
+    | 'checklists'
+    | 'tasks'
     | 'signals'
     | 'conversations'
     | 'consents'
@@ -268,6 +270,58 @@ export function createKerkitSchema(options: CreateSchemaOptions = {}) {
     ...ext.authorizationTimelineEntries,
   });
 
+  const checklists = pgTable('checklists', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    kind: text('kind').notNull().default('manual'),
+    templateId: text('template_id'),
+    linkedAppointmentId: uuid('linked_appointment_id').references(() => appointments.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ...ext.checklists,
+  });
+
+  const tasks = pgTable(
+    'tasks',
+    {
+      id: uuid('id').primaryKey().defaultRandom(),
+      userId: uuid('user_id')
+        .notNull()
+        .references(() => users.id, { onDelete: 'cascade' }),
+      title: text('title').notNull(),
+      description: text('description'),
+      kind: text('kind').notNull().default('chore'),
+      status: text('status').notNull().default('todo'),
+      dueDate: timestamp('due_date', { withTimezone: true }),
+      recurrencePattern: text('recurrence_pattern'),
+      assignee: text('assignee'),
+      checklistId: uuid('checklist_id').references(() => checklists.id, { onDelete: 'set null' }),
+      sortOrder: integer('sort_order'),
+      dependsOn: jsonb('depends_on').notNull().default([]),
+      linkedAppointmentId: uuid('linked_appointment_id').references(() => appointments.id, {
+        onDelete: 'set null',
+      }),
+      linkedAuthorizationId: uuid('linked_authorization_id').references(() => authorizations.id, {
+        onDelete: 'set null',
+      }),
+      linkedPrescriptionId: uuid('linked_prescription_id').references(() => prescriptions.id, {
+        onDelete: 'set null',
+      }),
+      sourceNoteId: uuid('source_note_id').references(() => notes.id, { onDelete: 'set null' }),
+      source: text('source'),
+      sourceExternalId: text('source_external_id'),
+      createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+      updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+      ...ext.tasks,
+    },
+    (t) => [index('tasks_user_status_idx').on(t.userId, t.status)],
+  );
+
   const signals = pgTable(
     'signals',
     {
@@ -344,6 +398,8 @@ export function createKerkitSchema(options: CreateSchemaOptions = {}) {
     checkpoints,
     authorizations,
     authorizationTimelineEntries,
+    checklists,
+    tasks,
     signals,
     conversations,
     consents,

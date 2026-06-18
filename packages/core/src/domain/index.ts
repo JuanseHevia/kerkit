@@ -31,3 +31,10 @@ export {
   calculateExpiryDate,
   getPrescriptionStatus,
 } from './dates.js';
+
+export {
+  checklistProgress,
+  blockingDependencies,
+  canComplete,
+  type ChecklistProgress,
+} from './tasks.js';

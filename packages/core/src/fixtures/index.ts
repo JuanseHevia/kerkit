@@ -13,6 +13,9 @@ export {
   fixtureAuthorization,
   fixtureNote,
   fixtureCheckpoint,
+  fixtureChecklist,
+  fixtureTaskLab,
+  fixtureTaskBuyMeds,
   fixtureSignal,
   fixtureEntities,
 } from './persona.js';

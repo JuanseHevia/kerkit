@@ -8,6 +8,7 @@ import {
   fixtureAppointmentMri,
   fixtureAuthorization,
   fixtureCheckpoint,
+  fixtureChecklist,
   fixtureClinic,
   fixtureImagingCenter,
   fixtureInsurer,
@@ -16,6 +17,8 @@ import {
   fixturePatient,
   fixturePrescription,
   fixtureSignal,
+  fixtureTaskBuyMeds,
+  fixtureTaskLab,
   fixtureUser,
 } from '@kerkit/core';
 import type { Note } from '@kerkit/core';
@@ -84,6 +87,47 @@ export function createFixtureRepositories(): KerkitRepositories & { createdNotes
     checkpoints: {
       list: async ({ userId, limit }) =>
         [fixtureCheckpoint].filter((c) => c.userId === userId).slice(0, limit ?? 50),
+    },
+    tasks: {
+      list: async ({ userId, statuses, kind, checklistId, dueBefore, limit }) =>
+        [fixtureTaskLab, fixtureTaskBuyMeds]
+          .filter((t) => t.userId === userId)
+          .filter((t) => (statuses ? statuses.includes(t.status) : true))
+          .filter((t) => (kind ? t.kind === kind : true))
+          .filter((t) => (checklistId ? t.checklistId === checklistId : true))
+          .filter((t) => (dueBefore && t.dueDate ? t.dueDate <= dueBefore : true))
+          .slice(0, limit ?? 50),
+      create: async ({
+        userId,
+        title,
+        kind,
+        dueDate,
+        checklistId,
+        dependsOn,
+        linkedAppointmentId,
+        linkedAuthorizationId,
+        linkedPrescriptionId,
+        sourceNoteId,
+      }) => ({
+        id: '00000000-0000-4000-8000-0000000000af',
+        userId,
+        title,
+        kind: kind ?? 'chore',
+        status: 'todo',
+        dueDate,
+        checklistId,
+        dependsOn,
+        linkedAppointmentId,
+        linkedAuthorizationId,
+        linkedPrescriptionId,
+        sourceNoteId,
+        createdAt: new Date('2026-02-01T12:00:00.000Z'),
+        updatedAt: new Date('2026-02-01T12:00:00.000Z'),
+      }),
+    },
+    checklists: {
+      list: async ({ userId, limit }) =>
+        [fixtureChecklist].filter((c) => c.userId === userId).slice(0, limit ?? 50),
     },
     signals: {
       list: async ({ userId, acknowledged, limit }) =>

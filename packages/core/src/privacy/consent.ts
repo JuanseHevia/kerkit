@@ -37,6 +37,10 @@ export function isConsentActive(record: ConsentRecord, now: Date = new Date()): 
 export const DELETION_ORDER = [
   'signals',
   'authorizationTimelineEntries',
+  // Tasks reference notes/appointments/authorizations/prescriptions/checklists,
+  // so they must be removed before any of those parents.
+  'tasks',
+  'checklists',
   'authorizations',
   'checkpoints',
   'notes',

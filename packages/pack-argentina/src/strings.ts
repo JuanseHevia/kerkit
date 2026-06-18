@@ -31,6 +31,20 @@ export const strings: Record<CopyKey, string> = {
   'status.prescription.expired': 'Vencida',
   'status.prescription.renewed': 'Renovada',
 
+  // Task statuses
+  'status.task.todo': 'Pendiente',
+  'status.task.in_progress': 'En curso',
+  'status.task.blocked': 'Trabada',
+  'status.task.done': 'Hecha',
+  'status.task.cancelled': 'Cancelada',
+
+  // Task kinds
+  'taskKind.chore': 'Gestión',
+  'taskKind.prep': 'Preparación',
+  'taskKind.admin': 'Trámite',
+  'taskKind.medication': 'Medicación',
+  'taskKind.followup': 'Seguimiento',
+
   // Care-event kinds
   'careEvent.chemo': 'Quimioterapia',
   'careEvent.imaging': 'Estudio por imágenes',
@@ -59,6 +73,7 @@ export const strings: Record<CopyKey, string> = {
   'context.section.notes': 'NOTAS DEL CUIDADOR',
   'context.section.checkpoints': 'CHECKPOINTS RECIENTES',
   'context.section.signals': 'SEÑALES SIN ATENDER',
+  'context.section.tasks': 'TAREAS PENDIENTES',
 
   // Assistant fallback lines
   'assistant.fallback.empty': 'No pude procesar tu mensaje. ¿Podés intentar de nuevo?',

@@ -7,6 +7,7 @@ import type { CheckpointBase } from '../entities/checkpoint.js';
 import type { InstitutionBase } from '../entities/institution.js';
 import type { PersonBase } from '../entities/person.js';
 import type { SignalBase } from '../entities/signal.js';
+import type { TaskBase, ChecklistBase } from '../entities/task.js';
 import type { UserBase } from '../entities/user.js';
 import type { Classification } from './classification.js';
 
@@ -148,6 +149,40 @@ export const signalClassification: Classification<SignalBase> = {
   linkedAuthorizationId: 'logistics',
   institutionId: 'logistics',
   createdAt: 'public',
+};
+
+export const taskClassification: Classification<TaskBase> = {
+  id: 'logistics',
+  userId: 'logistics',
+  title: 'logistics',
+  description: 'logistics',
+  kind: 'logistics',
+  status: 'logistics',
+  dueDate: 'logistics',
+  recurrencePattern: 'logistics',
+  assignee: 'logistics',
+  checklistId: 'logistics',
+  sortOrder: 'public',
+  dependsOn: 'logistics',
+  linkedAppointmentId: 'logistics',
+  linkedAuthorizationId: 'logistics',
+  linkedPrescriptionId: 'logistics',
+  sourceNoteId: 'logistics',
+  source: 'logistics',
+  sourceExternalId: 'logistics',
+  createdAt: 'public',
+  updatedAt: 'public',
+};
+
+export const checklistClassification: Classification<ChecklistBase> = {
+  id: 'logistics',
+  userId: 'logistics',
+  title: 'logistics',
+  kind: 'logistics',
+  templateId: 'public',
+  linkedAppointmentId: 'logistics',
+  createdAt: 'public',
+  updatedAt: 'public',
 };
 
 export const userClassification: Classification<UserBase> = {

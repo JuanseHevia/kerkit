@@ -3,6 +3,7 @@ import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import type {
   Appointment,
   Authorization,
+  Checklist,
   Checkpoint,
   Institution,
   InstitutionContact,
@@ -11,6 +12,7 @@ import type {
   Patient,
   Prescription,
   Signal,
+  Task,
   User,
 } from '@kerkit/core';
 import type { KerkitTables } from '../schema/factory.js';
@@ -109,6 +111,64 @@ export function createKerkitRepositories(db: KerkitDb, tables: KerkitTables): Ke
           .orderBy(desc(tables.checkpoints.number))
           .limit(limit ?? 50);
         return rows as unknown as Checkpoint[];
+      },
+    },
+    tasks: {
+      async list({ userId, statuses, kind, checklistId, dueBefore, limit }) {
+        const conditions = [eq(tables.tasks.userId, userId)];
+        if (statuses && statuses.length > 0)
+          conditions.push(inArray(tables.tasks.status, statuses));
+        if (kind) conditions.push(eq(tables.tasks.kind, kind));
+        if (checklistId) conditions.push(eq(tables.tasks.checklistId, checklistId));
+        if (dueBefore) conditions.push(lte(tables.tasks.dueDate, dueBefore));
+        const rows = await db
+          .select()
+          .from(tables.tasks)
+          .where(and(...conditions))
+          .orderBy(tables.tasks.sortOrder, tables.tasks.dueDate)
+          .limit(limit ?? 50);
+        return rows as unknown as Task[];
+      },
+      async create({
+        userId,
+        title,
+        kind,
+        dueDate,
+        checklistId,
+        dependsOn,
+        linkedAppointmentId,
+        linkedAuthorizationId,
+        linkedPrescriptionId,
+        sourceNoteId,
+      }) {
+        const [row] = await db
+          .insert(tables.tasks)
+          .values({
+            userId,
+            title,
+            kind: kind ?? 'chore',
+            status: 'todo',
+            dueDate: dueDate ?? null,
+            checklistId: checklistId ?? null,
+            dependsOn: dependsOn ?? [],
+            linkedAppointmentId: linkedAppointmentId ?? null,
+            linkedAuthorizationId: linkedAuthorizationId ?? null,
+            linkedPrescriptionId: linkedPrescriptionId ?? null,
+            sourceNoteId: sourceNoteId ?? null,
+          })
+          .returning();
+        return row as unknown as Task;
+      },
+    },
+    checklists: {
+      async list({ userId, limit }) {
+        const rows = await db
+          .select()
+          .from(tables.checklists)
+          .where(eq(tables.checklists.userId, userId))
+          .orderBy(desc(tables.checklists.createdAt))
+          .limit(limit ?? 50);
+        return rows as unknown as Checklist[];
       },
     },
     signals: {

@@ -29,6 +29,8 @@ export function createDrizzlePrivacyStore(db: KerkitDb, tables: KerkitTables): P
   // DELETION_ORDER entity names → user-owned tables (children before parents).
   const byName: Record<string, { table: KerkitTables[keyof KerkitTables] }> = {
     signals: { table: tables.signals },
+    tasks: { table: tables.tasks },
+    checklists: { table: tables.checklists },
     authorizations: { table: tables.authorizations },
     checkpoints: { table: tables.checkpoints },
     notes: { table: tables.notes },

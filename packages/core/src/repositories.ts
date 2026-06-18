@@ -3,6 +3,7 @@ import type {
   AppointmentStatus,
   Authorization,
   AuthorizationStatus,
+  Checklist,
   Checkpoint,
   Institution,
   InstitutionContact,
@@ -11,6 +12,9 @@ import type {
   Prescription,
   PrescriptionStatus,
   Signal,
+  Task,
+  TaskKind,
+  TaskStatus,
   User,
 } from './entities/index.js';
 
@@ -68,6 +72,33 @@ export interface CheckpointsRepository {
   list(opts: { userId: string; limit?: number }): Promise<Checkpoint[]>;
 }
 
+export interface TasksRepository {
+  list(opts: {
+    userId: string;
+    statuses?: TaskStatus[];
+    kind?: TaskKind;
+    checklistId?: string;
+    dueBefore?: Date;
+    limit?: number;
+  }): Promise<Task[]>;
+  create(opts: {
+    userId: string;
+    title: string;
+    kind?: TaskKind;
+    dueDate?: Date;
+    checklistId?: string;
+    dependsOn?: string[];
+    linkedAppointmentId?: string;
+    linkedAuthorizationId?: string;
+    linkedPrescriptionId?: string;
+    sourceNoteId?: string;
+  }): Promise<Task>;
+}
+
+export interface ChecklistsRepository {
+  list(opts: { userId: string; limit?: number }): Promise<Checklist[]>;
+}
+
 export interface SignalsRepository {
   list(opts: { userId: string; acknowledged?: boolean; limit?: number }): Promise<Signal[]>;
 }
@@ -85,6 +116,8 @@ export interface KerkitRepositories {
   notes: NotesRepository;
   authorizations: AuthorizationsRepository;
   checkpoints: CheckpointsRepository;
+  tasks: TasksRepository;
+  checklists: ChecklistsRepository;
   signals: SignalsRepository;
   profile: ProfileRepository;
 }

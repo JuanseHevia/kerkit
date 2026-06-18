@@ -50,6 +50,20 @@ export {
 } from './checkpoint.schema.js';
 
 export {
+  taskKindEnum,
+  taskStatusEnum,
+  checklistKindEnum,
+  createTaskSchema,
+  updateTaskSchema,
+  createChecklistSchema,
+  updateChecklistSchema,
+  type CreateTaskInput,
+  type UpdateTaskInput,
+  type CreateChecklistInput,
+  type UpdateChecklistInput,
+} from './task.schema.js';
+
+export {
   institutionTypeEnum,
   createInstitutionSchema,
   updateInstitutionSchema,

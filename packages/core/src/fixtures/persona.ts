@@ -13,6 +13,7 @@ import type { Prescription } from '../entities/prescription.js';
 import type { Authorization } from '../entities/authorization.js';
 import type { Note } from '../entities/note.js';
 import type { Checkpoint } from '../entities/checkpoint.js';
+import type { Task, Checklist } from '../entities/task.js';
 import type { Signal } from '../entities/signal.js';
 
 const T0 = new Date('2026-01-05T12:00:00.000Z');
@@ -32,6 +33,9 @@ export const FIXTURE_IDS = {
   note: '00000000-0000-4000-8000-000000000060',
   checkpoint: '00000000-0000-4000-8000-000000000070',
   signal: '00000000-0000-4000-8000-000000000080',
+  checklist: '00000000-0000-4000-8000-000000000090',
+  taskLab: '00000000-0000-4000-8000-0000000000a0',
+  taskBuyMeds: '00000000-0000-4000-8000-0000000000a1',
 } as const;
 
 /** The caretaker. */
@@ -216,6 +220,49 @@ export const fixtureSignal: Signal = {
   createdAt: T0,
 };
 
+/** The pre-appointment prep checklist for the chemo session. */
+export const fixtureChecklist: Checklist = {
+  id: FIXTURE_IDS.checklist,
+  userId: FIXTURE_IDS.user,
+  title: 'Preparación para quimioterapia — ciclo 3',
+  kind: 'pre_appointment',
+  linkedAppointmentId: FIXTURE_IDS.appointmentChemo,
+  createdAt: T0,
+  updatedAt: T0,
+};
+
+/** A finished prep chore: pick up the lab results to bring to the session. */
+export const fixtureTaskLab: Task = {
+  id: FIXTURE_IDS.taskLab,
+  userId: FIXTURE_IDS.user,
+  title: 'Retirar resultados de laboratorio',
+  kind: 'prep',
+  status: 'done',
+  dueDate: new Date('2026-02-09T18:00:00.000Z'),
+  checklistId: FIXTURE_IDS.checklist,
+  sortOrder: 0,
+  linkedAppointmentId: FIXTURE_IDS.appointmentChemo,
+  createdAt: T0,
+  updatedAt: T0,
+};
+
+/** A pending chore that depends on the lab task being done first. */
+export const fixtureTaskBuyMeds: Task = {
+  id: FIXTURE_IDS.taskBuyMeds,
+  userId: FIXTURE_IDS.user,
+  title: 'Comprar medicación para el ciclo 3',
+  kind: 'medication',
+  status: 'todo',
+  dueDate: new Date('2026-02-09T20:00:00.000Z'),
+  checklistId: FIXTURE_IDS.checklist,
+  sortOrder: 1,
+  dependsOn: [FIXTURE_IDS.taskLab],
+  linkedPrescriptionId: FIXTURE_IDS.prescription,
+  linkedAuthorizationId: FIXTURE_IDS.authorization,
+  createdAt: T0,
+  updatedAt: T0,
+};
+
 /** Every fixture entity, keyed for iteration in completeness tests. */
 export const fixtureEntities = {
   user: fixtureUser,
@@ -230,5 +277,8 @@ export const fixtureEntities = {
   authorization: fixtureAuthorization,
   note: fixtureNote,
   checkpoint: fixtureCheckpoint,
+  checklist: fixtureChecklist,
+  taskLab: fixtureTaskLab,
+  taskBuyMeds: fixtureTaskBuyMeds,
   signal: fixtureSignal,
 } as const;

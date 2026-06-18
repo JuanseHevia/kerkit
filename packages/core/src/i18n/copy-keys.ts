@@ -26,6 +26,18 @@ export const COPY_KEYS = [
   'status.prescription.expiring',
   'status.prescription.expired',
   'status.prescription.renewed',
+  // Task statuses
+  'status.task.todo',
+  'status.task.in_progress',
+  'status.task.blocked',
+  'status.task.done',
+  'status.task.cancelled',
+  // Task kinds
+  'taskKind.chore',
+  'taskKind.prep',
+  'taskKind.admin',
+  'taskKind.medication',
+  'taskKind.followup',
   // Care-event kinds
   'careEvent.chemo',
   'careEvent.imaging',
@@ -47,6 +59,7 @@ export const COPY_KEYS = [
   'context.section.notes',
   'context.section.checkpoints',
   'context.section.signals',
+  'context.section.tasks',
   // Assistant fallback lines
   'assistant.fallback.empty',
   'assistant.fallback.toolRoundsExhausted',

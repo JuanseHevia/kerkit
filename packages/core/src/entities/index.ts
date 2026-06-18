@@ -17,6 +17,15 @@ export type {
 } from './authorization.js';
 export type { Checkpoint, CheckpointBase } from './checkpoint.js';
 export type {
+  Task,
+  TaskBase,
+  TaskKind,
+  TaskStatus,
+  Checklist,
+  ChecklistBase,
+  ChecklistKind,
+} from './task.js';
+export type {
   Institution,
   InstitutionBase,
   InstitutionType,
