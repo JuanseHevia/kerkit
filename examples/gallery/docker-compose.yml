@@ -1,0 +1,13 @@
+services:
+  gallery:
+    build:
+      context: ../..
+      dockerfile: examples/gallery/Dockerfile
+    image: kerkit-gallery
+    ports:
+      - '3010:3010'
+    environment:
+      # Offline by default (scripted mock provider). Set OPENAI_API_KEY to use
+      # the real OpenAI Responses adapter — the loop and redaction are identical.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
