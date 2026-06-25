@@ -1,0 +1,14 @@
+# Docker build context root for examples/gallery (compose context: ../..).
+# Keep the context lean and force a clean in-image install/build: never copy
+# host node_modules, build output, or local tooling state.
+**/node_modules
+**/dist
+**/.turbo
+**/*.tsbuildinfo
+.git
+.github
+.changeset
+.claude
+.playwright-mcp
+docs
+*.log

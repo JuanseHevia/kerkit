@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* "Calm Confidence" — transcribed from @kerkit/ui tokens. */
+  --k-page: #fafaf8;
+  --k-card: #ffffff;
+  --k-border: #e5e3dd;
+  --k-ink: #252420;
+  --k-ink-soft: #5a5750;
+  --k-ink-faint: #7d796f;
+  --k-forward: #2e8b5e;
+  --k-forward-600: #247048;
+  --k-forward-soft: #d5eddf;
+  --k-warm: #c4956a;
+  --k-ocean: #4a90a4;
+
+  /* Data-class accents for the Privacy X-Ray. */
+  --dc-direct: #c62828;
+  --dc-direct-bg: #fbe9e7;
+  --dc-sensitive: #6b4c8a;
+  --dc-sensitive-bg: #e8dff0;
+  --dc-logistics: #2e6e7e;
+  --dc-logistics-bg: #e2eef1;
+  --dc-public: #5a5750;
+  --dc-public-bg: #f0efea;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--k-page);
+  color: var(--k-ink);
+  font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--k-forward-soft);
+}
+
+/* Faint dotted texture for hero / empty surfaces. */
+.k-dotgrid {
+  background-image: radial-gradient(rgba(20, 19, 17, 0.05) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+@keyframes k-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.k-fade-in {
+  animation: k-fade-in 0.4s ease both;
+}
+
+/* Thin, calm scrollbars inside scroll panels. */
+.k-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.k-scroll::-webkit-scrollbar-thumb {
+  background: var(--k-border);
+  border-radius: 9999px;
+}

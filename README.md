@@ -4,6 +4,37 @@
 
 > ⚠️ **kerkit is not a medical device and does not provide medical advice.** It models caretaker-authored *logistics* data — appointments, trámites, prescriptions-as-documents, notes — not clinical records. See [NOTICE](./NOTICE).
 
+## See it in action
+
+The **[Showcase Gallery](./examples/gallery)** is a visual, container-runnable tour of the SDK — three live scenes over a synthetic persona, with no database, no OAuth, and **no API key**. One command:
+
+```bash
+cd examples/gallery && docker compose up   # → http://localhost:3010
+```
+
+[![kerkit Showcase Gallery](./docs/assets/gallery/landing.png)](./examples/gallery)
+
+### 🛡️ Privacy X-Ray — *see exactly what the model receives*
+
+The same entity, twice: raw data on the left, the redacted projection on the right. Direct identifiers become tokens, sensitive health fields are gated behind an explicit opt-in, and a regex sweep catches PII hiding in free text.
+
+<p align="center">
+  <img src="./docs/assets/gallery/privacy-xray.png" width="49%" alt="Privacy X-Ray: raw vs. redacted" />
+  <img src="./docs/assets/gallery/privacy-sweep.png" width="49%" alt="Free-text identifier sweep" />
+</p>
+
+### 💬 Caretaker Assistant — *a real tool-calling loop, zero leaks*
+
+The provider-agnostic `runChatLoop` over fixture data, with a visible tool-call trace and a leak check that proves the raw identifiers never reach the model. Runs offline on a scripted provider; set `OPENAI_API_KEY` for the real thing.
+
+![Caretaker Assistant: tool trace + leak check](./docs/assets/gallery/assistant.png)
+
+### 📊 Treatment & Tasks — *the caretaker domain, computed*
+
+Treatment cycle progress, upcoming care events that know their prep and authorization needs, and a dependency-aware checklist roll-up — straight from the core domain functions.
+
+![Treatment & Tasks dashboard](./docs/assets/gallery/dashboard.png)
+
 ## Is this for me?
 
 | You are… | Use |
