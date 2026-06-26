@@ -9,9 +9,13 @@ jobs:
   pii-scan:
     name: PII / secret scan (gitleaks)
     runs-on: ubuntu-latest
+    # gitleaks-action lists the PR's commits and (on a finding) comments on the
+    # PR. The default GITHUB_TOKEN here lacks pull-requests access, so on every
+    # pull_request run ScanPullRequest 403s before scanning. Grant the minimum
+    # it needs so the gate actually runs on PRs (it already works on push).
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
