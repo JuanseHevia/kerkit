@@ -11,6 +11,14 @@
 
 > ⚠️ **kerkit is not a medical device and does not provide medical advice.** It models caretaker-authored *logistics* data — appointments, trámites, prescriptions-as-documents, notes — not clinical records. See [NOTICE](./NOTICE).
 
+**Try it in one command** — no clone, no database, no API key:
+
+```bash
+npx github:JuanseHevia/kerkit
+```
+
+It prints raw caretaker data next to the redacted projection the model receives, then proves the synthetic patient's DNI never reached the model. (First run builds the packages, ~30–60s.)
+
 ## Table of contents
 
 - [Quickstart](#quickstart)
@@ -26,6 +34,16 @@
 
 ## Quickstart
 
+See the privacy model in action in one command — no clone, no database, no API key:
+
+```bash
+npx github:JuanseHevia/kerkit
+```
+
+You should see the raw caretaker record, the redacted projection the model actually receives, and a leak check ending in `✅ PASS — no raw identifier reached the model.` (First run builds the packages, ~30–60s.)
+
+### Build on it
+
 **Prerequisites:** Node ≥ 22, npm ≥ 11 (ships with Node 22).
 
 ```bash
@@ -36,7 +54,7 @@ npm run build
 npm run test
 ```
 
-All 11 tests should pass. Then run the zero-config demo — no database, no OAuth, no LLM key:
+All 11 tests should pass. Then run the full demo server — no database, no OAuth, no LLM key:
 
 ```bash
 cd examples/minimal-caretaker
@@ -106,15 +124,15 @@ Treatment cycle progress, upcoming care events that know their prep and authoriz
 
 ## Packages
 
-| Package | Purpose | Install |
+| Package | Purpose | Install (npm, coming soon) |
 |---|---|---|
-| [`@kerkit/core`](./packages/core) | Entities, Zod schemas, authorization state machine, care-event taxonomy, privacy primitives, repository interfaces, synthetic fixtures | `npm i @kerkit/core` |
-| [`@kerkit/pack-argentina`](./packages/pack-argentina) | es-AR strings (voseo), obra social model, email signal patterns, DNI/CUIL redaction rules, Ley 25.326 guidance | `npm i @kerkit/pack-argentina` |
-| [`@kerkit/ai`](./packages/ai) | ContextAssembler (redaction-enforced context window), provider-agnostic tool-calling loop, MCP tool toolkit, prompt conventions | `npm i @kerkit/ai` |
-| [`@kerkit/ui`](./packages/ui) | "Calm Confidence" design tokens; React Native components (shipping in waves) | `npm i @kerkit/ui` |
-| [`@kerkit/server`](./packages/server) | Drizzle schema factory, repository implementations, consent/export/delete route factories with audit, cron skeletons | `npm i @kerkit/server` |
+| [`@kerkit/core`](./packages/core) | Entities, Zod schemas, authorization state machine, care-event taxonomy, privacy primitives, repository interfaces, synthetic fixtures | `npm i @kerkit/core`¹ |
+| [`@kerkit/pack-argentina`](./packages/pack-argentina) | es-AR strings (voseo), obra social model, email signal patterns, DNI/CUIL redaction rules, Ley 25.326 guidance | `npm i @kerkit/pack-argentina`¹ |
+| [`@kerkit/ai`](./packages/ai) | ContextAssembler (redaction-enforced context window), provider-agnostic tool-calling loop, MCP tool toolkit, prompt conventions | `npm i @kerkit/ai`¹ |
+| [`@kerkit/ui`](./packages/ui) | "Calm Confidence" design tokens; React Native components (shipping in waves) | `npm i @kerkit/ui`¹ |
+| [`@kerkit/server`](./packages/server) | Drizzle schema factory, repository implementations, consent/export/delete route factories with audit, cron skeletons | `npm i @kerkit/server`¹ |
 
-> All packages are `0.1.0` and not yet published. Until the first npm release, depend on them via npm workspaces (already set up in this monorepo).
+> ¹ **Not yet published to npm** — these `npm i` commands will work after the first release. Until then, consume the packages from source via the [Build on it](#quickstart) clone flow (npm workspaces are already wired up).
 
 ## Usage example
 

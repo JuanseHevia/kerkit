@@ -6,12 +6,17 @@
     "packages/*",
     "examples/*"
   ],
+  "bin": {
+    "kerkit-demo": "./scripts/demo.mjs"
+  },
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
     "test": "turbo test",
     "clean": "turbo clean",
+    "demo": "node scripts/demo.mjs",
+    "prepare": "turbo build",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "turbo build && changeset publish"
