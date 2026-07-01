@@ -17,7 +17,7 @@
 npx github:JuanseHevia/kerkit
 ```
 
-It prints raw caretaker data next to the redacted projection the model receives, then proves the synthetic patient's DNI never reached the model. (First run builds the packages, ~30–60s.)
+It prints raw caretaker data next to the redacted projection the model receives, then proves the synthetic patient's DNI never reached the model. Runs in a few seconds — no install, no build.
 
 ## Table of contents
 
@@ -40,7 +40,7 @@ See the privacy model in action in one command — no clone, no database, no API
 npx github:JuanseHevia/kerkit
 ```
 
-You should see the raw caretaker record, the redacted projection the model actually receives, and a leak check ending in `✅ PASS — no raw identifier reached the model.` (First run builds the packages, ~30–60s.)
+You should see the raw caretaker record, the redacted projection the model actually receives, and a leak check ending in `✅ PASS — no raw identifier reached the model.` Runs in a few seconds — no install, no build.
 
 ### Build on it
 

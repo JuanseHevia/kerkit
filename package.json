@@ -7,7 +7,7 @@
     "examples/*"
   ],
   "bin": {
-    "kerkit-demo": "./scripts/demo.mjs"
+    "kerkit-demo": "./scripts/demo.bundle.mjs"
   },
   "scripts": {
     "build": "turbo build",
@@ -16,13 +16,14 @@
     "test": "turbo test",
     "clean": "turbo clean",
     "demo": "node scripts/demo.mjs",
-    "prepare": "turbo build",
+    "build:demo": "npm run build && esbuild scripts/demo.mjs --bundle --platform=node --format=esm --target=node20 --minify --legal-comments=none --outfile=scripts/demo.bundle.mjs",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "turbo build && changeset publish"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
+    "esbuild": "^0.27.0",
     "turbo": "^2.4.0",
     "typescript": "^5.7.0"
   }
