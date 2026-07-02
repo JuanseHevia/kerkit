@@ -54,7 +54,7 @@ npm run build
 npm run test
 ```
 
-All 11 tests should pass. Then run the full demo server — no database, no OAuth, no LLM key:
+All 11 workspace test suites should pass (~160 tests). Then run the full demo server — no database, no OAuth, no LLM key:
 
 ```bash
 cd examples/minimal-caretaker
@@ -187,7 +187,8 @@ kerkit/
 │   └── gallery/            # Visual Showcase Gallery (Docker)
 └── docs/
     ├── anonymization-testing-framework.md
-    └── domain-fidelity-review.md
+    ├── domain-fidelity-review.md
+    └── compliance/            # Argentine legal standards + evaluation framework
 ```
 
 **Tooling:** npm workspaces, [Turborepo](https://turbo.build/), [Zod](https://zod.dev/), [Drizzle ORM](https://orm.drizzle.team/), [Changesets](https://github.com/changesets/changesets), [gitleaks](https://github.com/gitleaks/gitleaks) (Argentine identifier rules).
