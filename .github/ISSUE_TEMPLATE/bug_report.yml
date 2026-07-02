@@ -1,0 +1,67 @@
+name: "Bug report"
+description: "Something isn't working as documented."
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Bug fixes with a test are accepted without prior discussion — feel free to open a PR too.
+
+        **Do not paste real personal or health data.** Use the synthetic persona (Marta Pérez, DNI 12.345.678) in any examples. See [CONTRIBUTING.md](https://github.com/JuanseHevia/kerkit/blob/main/CONTRIBUTING.md#pii-rules-non-negotiable).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you see, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: Minimal steps to reproduce. Include a code snippet or command if you have one.
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: dropdown
+    id: package
+    attributes:
+      label: Affected package
+      options:
+        - "@kerkit/core"
+        - "@kerkit/pack-argentina"
+        - "@kerkit/ai"
+        - "@kerkit/ui"
+        - "@kerkit/server"
+        - "examples / demo"
+        - "docs"
+        - "not sure"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / environment
+      description: kerkit version, Node version, OS.
+      placeholder: "kerkit 0.x.x, Node 22, macOS"
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste any error output. Scrub real identifiers first.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: pii
+    attributes:
+      label: Privacy
+      options:
+        - label: This report uses only the synthetic persona and contains no real identifiers or screenshots of real data.
+          required: true
