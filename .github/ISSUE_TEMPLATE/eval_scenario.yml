@@ -1,0 +1,49 @@
+name: "Eval scenario (share domain knowledge)"
+description: "Improve the assistant's behavior by describing a real situation and what a good response looks like. No code required."
+title: "[eval] "
+labels: ["eval-scenario"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is one of the most valuable contributions possible, and it needs no code.
+
+        Describe a caretaker situation in your own words and tell us what a good assistant response looks like.
+
+        **Do not paste real personal or health data.** If you need a name, use the synthetic persona kerkit ships with: **Marta Pérez** (DNI 12.345.678, "Obra Social Demo Salud"). See [CONTRIBUTING.md](https://github.com/JuanseHevia/kerkit/blob/main/CONTRIBUTING.md#pii-rules-non-negotiable).
+  - type: textarea
+    id: situation
+    attributes:
+      label: The situation
+      description: In your words — what is the caretaker trying to do, and what's the context?
+      placeholder: "Marta's next chemo session is Thursday and she wants to know what to bring, but her obra social hasn't confirmed the authorization yet…"
+    validations:
+      required: true
+  - type: textarea
+    id: good-response
+    attributes:
+      label: What a good assistant response looks like
+      description: What should the assistant say or do here? What makes it helpful and safe?
+    validations:
+      required: true
+  - type: textarea
+    id: bad-response
+    attributes:
+      label: What a bad or unsafe response looks like
+      description: Optional. Any responses that would be wrong, unhelpful, or cross into medical advice/dosing.
+    validations:
+      required: false
+  - type: input
+    id: context
+    attributes:
+      label: Context (locale / obra social)
+      description: Optional. Locale (e.g. es-AR) or obra social this applies to, if relevant.
+    validations:
+      required: false
+  - type: checkboxes
+    id: pii
+    attributes:
+      label: Privacy
+      options:
+        - label: This contains no real personal or health data.
+          required: true
