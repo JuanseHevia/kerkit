@@ -142,7 +142,10 @@ export const signalClassification: Classification<SignalBase> = {
   externalId: 'logistics',
   signalType: 'logistics',
   subject: 'logistics',
-  sender: 'logistics',
+  // Inbound insurer email address — machine-facing, no assistant-utility value,
+  // so tokenizing is pure upside (M1 A7). Contact fields on Person/Institution
+  // stay 'logistics' and are gated by the session's pseudonymizeContacts policy.
+  sender: 'direct-identifier',
   detectedAt: 'logistics',
   acknowledged: 'public',
   suggestedAction: 'logistics',

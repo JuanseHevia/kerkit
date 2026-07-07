@@ -22,11 +22,21 @@ export {
 export {
   redactEntityForLlm,
   sweepText,
+  tokenBaseName,
   SWEEP_PLACEHOLDER,
   type RedactEntityOptions,
   type RedactionResult,
   type SweepResult,
 } from './redaction.js';
+
+export {
+  RedactionSession,
+  DEFAULT_REDACTION_POLICY,
+  type RedactionPolicy,
+  type RedactionSessionOptions,
+  type RedactionFinding,
+  type RedactionExplain,
+} from './session.js';
 
 export {
   consentScopeEnum,

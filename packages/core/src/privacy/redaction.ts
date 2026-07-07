@@ -7,6 +7,20 @@ export interface RedactEntityOptions<T> {
    * send health data to an LLM should be written down and reviewable.
    */
   allowSensitiveFields?: readonly (keyof T & string)[];
+  /**
+   * Collision-safe token allocator, supplied by a `RedactionSession`. Given the
+   * field name and its stringified value, returns the placeholder to use. When
+   * omitted, the field-name-derived `placeholderFor` is used (fine for a single
+   * entity; a session is required to keep tokens unique across many entities).
+   */
+  allocateToken?: (field: string, value: string) => string;
+  /**
+   * 'logistics' fields to tokenize as if they were `direct-identifier` — the
+   * mechanism behind the session's opt-in `pseudonymizeContacts` policy. Bare
+   * classification can't say "this `phone` is a clinic phone"; the caller (which
+   * knows the entity kind) decides.
+   */
+  pseudonymizeFields?: readonly (keyof T & string)[];
 }
 
 export interface RedactionResult {
@@ -16,8 +30,17 @@ export interface RedactionResult {
   tokens: Map<string, string>;
 }
 
+/**
+ * The upper-snake base of a token, derived from a field name:
+ * `nationalId` → `NATIONAL_ID`. Exported so a `RedactionSession` can build
+ * collision-safe variants like `«PERSON_NAME_1»` from the same base.
+ */
+export function tokenBaseName(field: string): string {
+  return field.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+}
+
 function placeholderFor(field: string): string {
-  return `«${field.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase()}»`;
+  return `«${tokenBaseName(field)}»`;
 }
 
 /**
@@ -35,8 +58,16 @@ export function redactEntityForLlm<T extends Record<string, unknown>>(
   options: RedactEntityOptions<T> = {},
 ): RedactionResult {
   const allow = new Set<string>(options.allowSensitiveFields ?? []);
+  const pseudonymize = new Set<string>(options.pseudonymizeFields ?? []);
+  const mint = options.allocateToken ?? ((field: string, _value: string) => placeholderFor(field));
   const redacted: Record<string, unknown> = {};
   const tokens = new Map<string, string>();
+
+  const tokenize = (field: string, value: unknown) => {
+    const token = mint(field, String(value));
+    tokens.set(token, String(value));
+    redacted[field] = token;
+  };
 
   for (const [field, value] of Object.entries(entity)) {
     if (value === undefined || value === null) continue;
@@ -46,9 +77,7 @@ export function redactEntityForLlm<T extends Record<string, unknown>>(
 
     switch (cls) {
       case 'direct-identifier': {
-        const token = placeholderFor(field);
-        tokens.set(token, String(value));
-        redacted[field] = token;
+        tokenize(field, value);
         break;
       }
       case 'sensitive-health': {
@@ -56,6 +85,11 @@ export function redactEntityForLlm<T extends Record<string, unknown>>(
         break;
       }
       case 'logistics':
+        // Opt-in policy (pseudonymizeContacts): tokenize contact fields the
+        // caller marked, otherwise pass through.
+        if (pseudonymize.has(field)) tokenize(field, value);
+        else redacted[field] = value;
+        break;
       case 'public':
         redacted[field] = value;
         break;
