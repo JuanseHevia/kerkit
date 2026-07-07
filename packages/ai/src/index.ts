@@ -44,5 +44,14 @@ export type { SystemPromptOptions, PatientContextResult } from './prompts/builde
 export { runChatLoop } from './loop/chat-loop.js';
 export type { ChatLoopOptions, ChatLoopResult, ExecutedToolCall } from './loop/chat-loop.js';
 
+// The safe default path — wires one RedactionSession through the whole flow.
+export { createRedactedChat } from './factory.js';
+export type { RedactedChat, RedactedChatOptions } from './factory.js';
+
+// Re-exported from @kerkit/core for convenience (the redaction primitives the
+// AI layer threads). Full set lives in @kerkit/core.
+export { RedactionSession } from '@kerkit/core';
+export type { RedactionPolicy, RedactionExplain, RedactionFinding } from '@kerkit/core';
+
 // MCP toolkit: import from '@kerkit/ai/mcp'
 // OpenAI Responses adapter: import from '@kerkit/ai/openai'

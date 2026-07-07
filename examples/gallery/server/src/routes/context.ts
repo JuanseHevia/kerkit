@@ -13,7 +13,7 @@ export function contextRoute(deps: DemoDeps) {
     for (const source of defaultSources(deps.repos, deps.pack, { now: deps.now })) {
       assembler.add(source);
     }
-    const ctx = await assembler.assemble(deps.userId, { knownTokens: deps.patientContext.tokens });
+    const ctx = await assembler.assemble(deps.userId, { session: deps.session });
 
     res.json({
       contextText: ctx.contextText,

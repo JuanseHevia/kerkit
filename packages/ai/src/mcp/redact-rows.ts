@@ -17,6 +17,24 @@ export function redactedRowsResult<T extends Record<string, unknown>>(
     return { content: [{ type: 'text', text: opts.emptyMessage }] };
   }
 
+  const session = context.session;
+
+  // Session path: shared allocator + shared known-value map, so a patient name
+  // sitting in a note's free text is swept to the same token as the structured
+  // field. This is what closes the MCP tool-path name leak.
+  if (session) {
+    const redactedRows = rows.map(
+      (row) =>
+        session.redactEntity(row, classification, {
+          allowSensitiveFields: opts.allowSensitiveFields,
+        }).redacted,
+    );
+    const text = session.sweep(JSON.stringify(redactedRows, null, 2));
+    return { content: [{ type: 'text', text }] };
+  }
+
+  // Legacy path (no session): structural redaction + a local-token sweep only.
+  // Names known only to the request (e.g. the patient's) are NOT swept here.
   const tokens = new Map<string, string>();
   const redactedRows = rows.map((row) => {
     const { redacted, tokens: rowTokens } = redactEntityForLlm(row, classification, {
