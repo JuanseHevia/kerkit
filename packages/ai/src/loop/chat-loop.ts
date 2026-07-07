@@ -1,5 +1,5 @@
 import { getCopy } from '@kerkit/core';
-import type { LocalePack } from '@kerkit/core';
+import type { LocalePack, RedactionExplain, RedactionSession } from '@kerkit/core';
 import type {
   ChatMessage,
   ProviderAdapter,
@@ -19,6 +19,13 @@ export interface ChatLoopResult {
   toolCalls?: ExecutedToolCall[];
   /** Rounds actually used (text-only answers use 1). */
   rounds: number;
+  /**
+   * What the redaction session did at the sink — tokens allocated, sweep
+   * matches, fail-closed events. Present only when a `session` was passed.
+   * NOTE: the returned `message` is model-emitted and is NOT sink-swept; keep
+   * your own output leak-check.
+   */
+  redaction?: RedactionExplain;
 }
 
 export interface ChatLoopOptions {
@@ -33,6 +40,30 @@ export interface ChatLoopOptions {
   maxOutputTokens?: number;
   /** Observe each executed call (logging, telemetry, write_note tracking…). */
   onToolCall?: (call: ExecutedToolCall) => void;
+  /**
+   * Shared request-scoped session. When passed, every application-originated
+   * string (instructions, message history, tool output, tool errors) is swept
+   * at the provider boundary. Pass the SAME instance used for context assembly
+   * and the patient block — `createRedactedChat` wires all three. Omit it and
+   * free-text names are NOT redacted (a one-time warning fires if a patient
+   * context is detected).
+   */
+  session?: RedactionSession;
+}
+
+let warnedMissingSession = false;
+
+/** One-time nudge: patient context present (placeholder tokens) but no session. */
+function warnIfUnprotected(instructions: string, session?: RedactionSession): void {
+  if (session || warnedMissingSession) return;
+  if (/«[^»]+»/.test(instructions)) {
+    warnedMissingSession = true;
+    console.warn(
+      '[KRK_NO_SESSION] kerkit: runChatLoop received a patient context but no RedactionSession — ' +
+        'free-text names in tool output and messages will NOT be redacted. ' +
+        'Use createRedactedChat or pass { session }.',
+    );
+  }
 }
 
 /**
@@ -44,14 +75,24 @@ export interface ChatLoopOptions {
 export async function runChatLoop(options: ChatLoopOptions): Promise<ChatLoopResult> {
   const maxRounds = options.maxRounds ?? 5;
   const executed: ExecutedToolCall[] = [];
+  const session = options.session;
+
+  warnIfUnprotected(options.instructions, session);
+
+  // Instructions and message history are constant across rounds — sweep once.
+  // Never mutate caller-owned arrays: build fresh copies.
+  const instructions = session ? session.sweep(options.instructions) : options.instructions;
+  const input: ChatMessage[] = session
+    ? options.messages.map((m) => ({ ...m, content: session.sweep(m.content) }))
+    : options.messages;
 
   let state: unknown;
   let toolResults: ToolCallResult[] | undefined;
 
   for (let round = 1; round <= maxRounds; round++) {
     const turn = await options.provider.generate({
-      instructions: options.instructions,
-      input: options.messages,
+      instructions,
+      input,
       state,
       toolResults,
       tools: options.tools,
@@ -63,6 +104,7 @@ export async function runChatLoop(options: ChatLoopOptions): Promise<ChatLoopRes
         message: turn.text ?? getCopy(options.pack, 'assistant.fallback.empty'),
         toolCalls: executed.length > 0 ? executed : undefined,
         rounds: round,
+        redaction: session?.explain(),
       };
     }
 
@@ -79,10 +121,14 @@ export async function runChatLoop(options: ChatLoopOptions): Promise<ChatLoopRes
       executed.push(record);
       options.onToolCall?.(record);
 
+      // Sweep the serialized output at the sink — catches external-tool output,
+      // write_note echo, and tool-error strings that never went through
+      // redactedRowsResult. Idempotent for rows already redacted with the session.
+      const rawOutput = typeof result === 'string' ? result : JSON.stringify(result);
       toolResults.push({
         id: call.id,
         name: call.name,
-        output: typeof result === 'string' ? result : JSON.stringify(result),
+        output: session ? session.sweep(rawOutput) : rawOutput,
       });
     }
 
@@ -93,5 +139,6 @@ export async function runChatLoop(options: ChatLoopOptions): Promise<ChatLoopRes
     message: getCopy(options.pack, 'assistant.fallback.toolRoundsExhausted'),
     toolCalls: executed.length > 0 ? executed : undefined,
     rounds: maxRounds,
+    redaction: session?.explain(),
   };
 }

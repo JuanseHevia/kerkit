@@ -1,5 +1,5 @@
 import { redactEntityForLlm, sweepText } from '@kerkit/core';
-import type { LocalePack } from '@kerkit/core';
+import type { LocalePack, RedactionSession } from '@kerkit/core';
 import type { ContextSource } from './source.js';
 
 export interface SectionReport {
@@ -53,9 +53,17 @@ export class ContextAssembler {
       /**
        * Tokens already known to the app (e.g. from buildPatientContextBlock),
        * so mentions of those values inside free text get swept to the same
-       * placeholders. Pass them — names hide in note contents.
+       * placeholders. Pass them — names hide in note contents. Ignored when
+       * `session` is supplied (the session already carries them).
        */
       knownTokens?: ReadonlyMap<string, string>;
+      /**
+       * Shared request-scoped session. Pass the SAME instance you gave
+       * `buildPatientContextBlock` and `runChatLoop` so tokens dedup across all
+       * three (a name in a note becomes the same placeholder as the patient
+       * field). Prefer `createRedactedChat`, which wires this for you.
+       */
+      session?: RedactionSession;
     } = {},
   ): Promise<AssembledContext> {
     const ordered = [...this.sources].sort((a, b) => a.priority - b.priority);
@@ -64,7 +72,10 @@ export class ContextAssembler {
       ordered.map(async (source) => ({ source, items: await source.fetch(userId) })),
     );
 
-    const redactionMap = new Map<string, string>(opts.knownTokens ?? []);
+    const session = opts.session;
+    // Without a session, accumulate locally (seeded with knownTokens). With a
+    // session, snapshot its map after redaction (below) — it owns the tokens.
+    const redactionMap = new Map<string, string>(session ? [] : (opts.knownTokens ?? []));
     const reports: SectionReport[] = [];
     const blocks: string[] = [];
 
@@ -74,13 +85,18 @@ export class ContextAssembler {
       const lines: string[] = [];
 
       for (const item of included) {
-        const { redacted, tokens } = redactEntityForLlm(item, source.classification, {
-          allowSensitiveFields: source.allowSensitiveFields,
-        });
-        for (const [token, value] of tokens) {
-          redactionMap.set(token, value);
-          tokenizedFields++;
-        }
+        const { redacted, tokens } = session
+          ? session.redactEntity(item, source.classification, {
+              entityKind: source.key,
+              allowSensitiveFields: source.allowSensitiveFields,
+            })
+          : redactEntityForLlm(item, source.classification, {
+              allowSensitiveFields: source.allowSensitiveFields,
+            });
+        tokenizedFields += tokens.size;
+        // Without a session, accumulate into the local map (the session owns
+        // its own map, exposed via tokenToValue()).
+        if (!session) for (const [token, value] of tokens) redactionMap.set(token, value);
         lines.push(`- ${source.formatItem(redacted)}`);
       }
 
@@ -100,17 +116,25 @@ export class ContextAssembler {
     }
 
     // Belt-and-suspenders: sweep the whole block for identifiers that hid in
-    // free text, plus any token-map values that leaked through other fields.
-    const swept = sweepText(
-      blocks.join('\n\n'),
-      this.options.pack.identifierPatterns ?? [],
-      redactionMap,
-    );
+    // free text, plus token-map values that leaked through other fields.
+    const joined = blocks.join('\n\n');
+    let contextText: string;
+    let sweptMatches: number;
+    if (session) {
+      const before = session.explain().sweptMatches;
+      contextText = session.sweep(joined);
+      sweptMatches = session.explain().sweptMatches - before;
+      for (const [token, value] of session.tokenToValue()) redactionMap.set(token, value);
+    } else {
+      const swept = sweepText(joined, this.options.pack.identifierPatterns ?? [], redactionMap);
+      contextText = swept.text;
+      sweptMatches = swept.matches.length;
+    }
 
     return {
-      contextText: swept.text,
+      contextText,
       redactionMap,
-      explain: () => ({ sections: reports, sweptMatches: swept.matches.length }),
+      explain: () => ({ sections: reports, sweptMatches }),
     };
   }
 }
