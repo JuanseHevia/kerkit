@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { LocalePack } from '@kerkit/core';
+import type { LocalePack, RedactionSession } from '@kerkit/core';
 import type { ExternalSources, KerkitRepositories } from '../repositories.js';
 
 export interface ToolContext {
@@ -9,6 +9,14 @@ export interface ToolContext {
   external?: ExternalSources;
   /** Supplies identifier patterns for output redaction. */
   pack: Pick<LocalePack, 'identifierPatterns'>;
+  /**
+   * Shared request-scoped session. Pass it so tool-output tokens dedup against
+   * the same allocator as context assembly (and a patient name in a note's free
+   * text is swept). A bespoke MCP server built on `registerKerkitTools` MUST
+   * populate this for tool output to be name-redacted — there is no loop sink
+   * on that path.
+   */
+  session?: RedactionSession;
 }
 
 export interface ToolResult {

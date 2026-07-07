@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { buildPatientContextBlock, buildSystemPrompt } from '@kerkit/ai';
+import { buildPatientContextBlock, buildSystemPrompt, RedactionSession } from '@kerkit/ai';
 import { createFixtureRepositories } from '@kerkit/ai/demo';
 import { argentina } from '@kerkit/pack-argentina';
 import { FIXTURE_IDS, fixturePatient } from '@kerkit/core';
@@ -32,10 +32,14 @@ export function createApp() {
   const userId = FIXTURE_IDS.user; // Demo mode: single synthetic user.
   const { provider, mode } = makeProvider();
 
-  // The patient block is pre-redacted; its tokens also sweep free text below.
+  // One shared session, threaded through the patient block, context assembly,
+  // and the chat sink — so the SDK (not the app) redacts free-text names.
+  const session = new RedactionSession({ patterns: pack.identifierPatterns ?? [] });
+
   const patientContext = buildPatientContextBlock(fixturePatient, {
     insurerName: 'Obra Social Demo Salud',
     allowSensitiveFields: ['treatmentPhase'],
+    session,
   });
 
   const systemPrompt = buildSystemPrompt({
@@ -45,7 +49,7 @@ export function createApp() {
     careContextBlock: patientContext.block,
   });
 
-  const deps: DemoDeps = { repos, pack, userId, provider, patientContext, systemPrompt, now: demoNow };
+  const deps: DemoDeps = { repos, pack, userId, provider, patientContext, systemPrompt, session, now: demoNow };
 
   app.get('/api/health', (_req, res) => res.json({ ok: true, mode }));
   app.get('/api/context', contextRoute(deps));

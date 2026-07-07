@@ -1,5 +1,5 @@
 import { getCopy, patientClassification, redactEntityForLlm } from '@kerkit/core';
-import type { LocalePack, Patient } from '@kerkit/core';
+import type { LocalePack, Patient, RedactionSession } from '@kerkit/core';
 
 export interface SystemPromptOptions {
   pack: LocalePack;
@@ -69,13 +69,25 @@ export function buildPatientContextBlock(
   opts: {
     insurerName?: string;
     allowSensitiveFields?: readonly ('diagnosis' | 'treatmentPhase')[];
+    /**
+     * Shared request-scoped session. Pass it (or use `createRedactedChat`) so
+     * the patient-name token is minted by the same allocator the assembler and
+     * the provider sink use — that's what lets a name hiding in a note's free
+     * text be swept to the same placeholder. Without it, the name token is
+     * isolated to this block.
+     */
+    session?: RedactionSession;
   } = {},
 ): PatientContextResult {
-  const { redacted, tokens } = redactEntityForLlm(
-    patient as unknown as Record<string, unknown>,
-    patientClassification,
-    { allowSensitiveFields: opts.allowSensitiveFields },
-  );
+  const record = patient as unknown as Record<string, unknown>;
+  const { redacted, tokens } = opts.session
+    ? opts.session.redactEntity(record, patientClassification, {
+        entityKind: 'patient',
+        allowSensitiveFields: opts.allowSensitiveFields,
+      })
+    : redactEntityForLlm(record, patientClassification, {
+        allowSensitiveFields: opts.allowSensitiveFields,
+      });
 
   const lines = [`- Paciente: ${redacted.name}`];
   if (opts.insurerName) lines.push(`- Obra social: ${opts.insurerName}`);
