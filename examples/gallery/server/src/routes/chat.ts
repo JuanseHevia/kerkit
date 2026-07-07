@@ -1,8 +1,7 @@
 import type { Request, Response } from 'express';
 import { runChatLoop } from '@kerkit/ai';
-import type { ToolCallRequest } from '@kerkit/ai';
 import { allTools, createToolExecutor, toToolSpecs } from '@kerkit/ai/mcp';
-import { fixturePatient, fixtureUser, sweepText } from '@kerkit/core';
+import { fixturePatient, fixtureUser } from '@kerkit/core';
 import type { DemoDeps } from '../deps.js';
 
 /**
@@ -25,24 +24,15 @@ const SENSITIVE_VALUES = [
  * in anything the model produced.
  */
 export function chatRoute(deps: DemoDeps) {
-  const patterns = deps.pack.identifierPatterns ?? [];
-  const knownTokens = deps.patientContext.tokens;
-
-  // The SDK's tool redaction scrubs each row's own direct-identifier fields and
-  // sweeps for identifier *patterns* (DNI/CUIL). A patient name hiding in a
-  // note's free text is neither — so we thread the app's known-token map
-  // («NAME» → real name) through the tool output, the same defense the
-  // ContextAssembler applies to the context window. Threading your identifier
-  // tokens through every model boundary is the app's job.
-  const baseExecutor = createToolExecutor(allTools, {
+  // The SDK now redacts tool output at the shared session (threaded via
+  // ToolContext + the runChatLoop sink) — including a patient name hiding in a
+  // note's free text. No app-side sweep workaround needed anymore.
+  const executeTool = createToolExecutor(allTools, {
     userId: deps.userId,
     repos: deps.repos,
     pack: deps.pack,
+    session: deps.session,
   });
-  const executeTool = async (call: ToolCallRequest): Promise<unknown> => {
-    const result = await baseExecutor(call);
-    return typeof result === 'string' ? sweepText(result, patterns, knownTokens).text : result;
-  };
 
   return async (req: Request, res: Response) => {
     const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
@@ -55,6 +45,7 @@ export function chatRoute(deps: DemoDeps) {
       messages: [{ role: 'user', content: message }],
       tools: toToolSpecs(allTools),
       executeTool,
+      session: deps.session,
     });
 
     const toolCalls = result.toolCalls ?? [];

@@ -5,22 +5,48 @@
  *   npx github:JuanseHevia/kerkit
  *
  * Runs the same wiring as examples/minimal-caretaker over the synthetic persona:
- * no database, no OAuth, no API key. Shows raw caretaker data vs. the redacted
- * projection the model actually receives, then proves the raw DNI never leaked.
+ * no database, no OAuth, no API key. Shows the raw caretaker record vs. the
+ * tokenized projection the model receives, then runs a real tool-calling turn
+ * and proves neither the raw DNI *nor the patient's name* reached the model —
+ * including the name hiding inside a note's free text.
  */
-import {
-  buildPatientContextBlock,
-  ContextAssembler,
-  defaultSources,
-} from '@kerkit/ai';
+import { createRedactedChat, defaultSources } from '@kerkit/ai';
+import { allTools } from '@kerkit/ai/mcp';
 import { createFixtureRepositories } from '@kerkit/ai/demo';
 import { argentina } from '@kerkit/pack-argentina';
 import { FIXTURE_IDS, fixturePatient } from '@kerkit/core';
 
-const RAW_DNI = fixturePatient.nationalId; // '12.345.678' — the synthetic identifier.
+const RAW_DNI = fixturePatient.nationalId; // '12.345.678' — regex-matchable.
+const RAW_NAME = fixturePatient.name; // 'Marta Pérez' — NOT regex-matchable.
 
 function line(label, value) {
   return `  ${label.padEnd(14)}= ${value}`;
+}
+
+/** A provider that asks for the notes (which embed name + DNI in free text),
+ *  then answers — recording everything it was sent. */
+function recordingProvider() {
+  const seen = [];
+  let round = 0;
+  return {
+    seen,
+    received(needle) {
+      return seen.some(
+        (c) =>
+          c.instructions.includes(needle) ||
+          c.input.some((m) => m.content.includes(needle)) ||
+          (c.toolResults ?? []).some((r) => r.output.includes(needle)),
+      );
+    },
+    async generate(opts) {
+      seen.push(opts);
+      round += 1;
+      if (round === 1) {
+        return { text: null, toolCalls: [{ id: 'c1', name: 'read_notes', arguments: {} }], state: { r: 1 } };
+      }
+      return { text: '(demo) Leí la nota; ningún dato real llegó hasta acá.', toolCalls: [], state: null };
+    },
+  };
 }
 
 async function main() {
@@ -28,19 +54,23 @@ async function main() {
 
   const pack = argentina;
   const repos = createFixtureRepositories();
-  const userId = FIXTURE_IDS.user;
+  const provider = recordingProvider();
+  const demoNow = () => new Date('2026-02-01T12:00:00.000Z');
 
-  // The patient block is pre-redacted; its tokens also sweep free text.
-  const patientContext = buildPatientContextBlock(fixturePatient, {
+  // One call wires the safe path: a RedactionSession threaded through the
+  // patient block, context assembly, tools, and the provider sink.
+  const chat = createRedactedChat({
+    pack,
+    provider,
+    repos,
+    patient: fixturePatient,
+    userId: FIXTURE_IDS.user,
+    assistantName: 'Demo',
     insurerName: 'Obra Social Demo Salud',
     allowSensitiveFields: ['treatmentPhase'],
+    sources: defaultSources(repos, pack, { now: demoNow }),
+    tools: allTools,
   });
-
-  // Assemble the full caretaker context window, pinned to the demo's data window.
-  const assembler = new ContextAssembler({ pack });
-  const demoNow = () => new Date('2026-02-01T12:00:00.000Z');
-  for (const source of defaultSources(repos, pack, { now: demoNow })) assembler.add(source);
-  const ctx = await assembler.assemble(userId, { knownTokens: patientContext.tokens });
 
   console.log('Raw caretaker record (what your database holds):');
   console.log(line('patient.name', JSON.stringify(fixturePatient.name)));
@@ -48,19 +78,29 @@ async function main() {
   console.log(line('credential', JSON.stringify(fixturePatient.credentialNumber)));
   console.log('');
 
-  console.log('What the model actually receives (redacted projection):');
-  for (const row of patientContext.block.split('\n')) console.log(`  ${row}`);
+  // Assemble the window + run one tool-calling turn (read_notes → the note
+  // contains "Marta Pérez, DNI 12.345.678" in free text).
+  await chat.assembleContext();
+  await chat.respond({ message: '¿Qué dice la última nota?' });
+
+  console.log('What the model actually receives (tokenized projection):');
+  for (const [token, value] of chat.session.tokenToValue()) {
+    console.log(`  ${value.padEnd(38)} →  ${token}`);
+  }
   console.log('');
 
-  // Leak check: the raw DNI must NOT appear anywhere in the assembled context.
-  const leaked = ctx.contextText.includes(RAW_DNI);
-  console.log(`🔍 Leak check — scanned the assembled context for the raw DNI ${RAW_DNI}:`);
-  if (leaked) {
-    console.log(`  ❌ FAIL — the raw identifier reached the model. This is a bug; please open an issue.\n`);
+  // Leak check: neither the raw DNI (regex) nor the raw NAME (free text) may
+  // appear in ANYTHING the recording provider was sent, across every round.
+  console.log(`🔍 Leak check — scanned every model input for the raw DNI (${RAW_DNI}) and name (${RAW_NAME}):`);
+  const dniLeaked = provider.received(RAW_DNI);
+  const nameLeaked = provider.received(RAW_NAME);
+  if (dniLeaked || nameLeaked) {
+    const which = [dniLeaked && 'DNI', nameLeaked && 'name'].filter(Boolean).join(' + ');
+    console.log(`  ❌ FAIL — the raw ${which} reached the model. This is a bug; please open an issue.\n`);
     process.exitCode = 1;
     return;
   }
-  console.log('  ✅ PASS — no raw identifier reached the model.\n');
+  console.log('  ✅ PASS — no raw identifier (DNI or name) reached the model.\n');
 
   console.log('Build on it →  git clone https://github.com/JuanseHevia/kerkit');
   console.log('Docs        →  https://github.com/JuanseHevia/kerkit#readme\n');

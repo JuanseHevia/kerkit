@@ -166,7 +166,8 @@ Extending entities (add a field without forking): see [EXTENDING.md](./EXTENDING
 Privacy is enforced in code, not documented in a paragraph:
 
 - Every entity field carries a **data classification** (`direct-identifier` / `sensitive-health` / `logistics` / `public`). CI fails if a field is unclassified.
-- **Redaction before LLM calls** is enforced at the context-assembly boundary inside `ContextAssembler`: direct identifiers become placeholder tokens; sensitive health fields pass only with explicit per-field opt-in in your code. Your app cannot accidentally leak them.
+- **Redaction before LLM calls.** A field classified `direct-identifier` becomes a placeholder token and its value never reaches the model — this is the *proven* structural invariant. `sensitive-health` fields pass only with an explicit per-field opt-in in your code. Use [`createRedactedChat`](./packages/ai) (or thread one `RedactionSession` through context assembly + `runChatLoop`) and the same discipline covers every LLM ingress — context, tool output, message history, tool errors — at one sink.
+  - **Known limitation (honest scope):** identifiers hiding in *free text* (a name typed into a note) are caught by a best-effort sweep — regex patterns plus the session's known values. Recall is not 100% on arbitrary input, and free-text **name** redaction only applies when you thread the session (the factory does this for you). Structured `direct-identifier` fields are the guaranteed part.
 - **Consent, export, and delete** are first-class primitives in `@kerkit/server`, not roadmap items.
 - System prompts ship with non-removable blocks: never ask the user for identifiers or credentials; never present as medical advice.
 

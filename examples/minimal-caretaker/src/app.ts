@@ -1,12 +1,6 @@
 import express from 'express';
-import {
-  buildPatientContextBlock,
-  buildSystemPrompt,
-  ContextAssembler,
-  defaultSources,
-  runChatLoop,
-} from '@kerkit/ai';
-import { allTools, createToolExecutor, toToolSpecs } from '@kerkit/ai/mcp';
+import { createRedactedChat, defaultSources } from '@kerkit/ai';
+import { allTools } from '@kerkit/ai/mcp';
 import { createFixtureRepositories } from '@kerkit/ai/demo';
 import { argentina } from '@kerkit/pack-argentina';
 import { FIXTURE_IDS, fixturePatient } from '@kerkit/core';
@@ -27,30 +21,33 @@ export function createApp() {
   const repos = createFixtureRepositories();
   const pack = argentina;
   const userId = FIXTURE_IDS.user; // Demo mode: single synthetic user.
-  const provider = new MockProvider();
 
-  // The patient block is pre-redacted; its tokens also sweep free text below.
-  const patientContext = buildPatientContextBlock(fixturePatient, {
-    insurerName: 'Obra Social Demo Salud',
-    allowSensitiveFields: ['treatmentPhase'],
-  });
+  // Demo data lives in Feb 2026; pin "now" so the appointment window matches.
+  const demoNow = () => new Date('2026-02-01T12:00:00.000Z');
 
-  const systemPrompt = buildSystemPrompt({
+  // One call wires the whole safe path: it owns a RedactionSession and threads
+  // it through the patient block, context assembly, tools, and the provider
+  // sink — so free-text names never reach the model. (Real multi-user apps build
+  // one per request; the demo is single-user so one at boot is fine.)
+  const chat = createRedactedChat({
     pack,
+    provider: new MockProvider(),
+    repos,
+    patient: fixturePatient,
+    userId,
     assistantName: 'Demo',
     caretakerName: 'Carlos',
-    careContextBlock: patientContext.block,
+    insurerName: 'Obra Social Demo Salud',
+    allowSensitiveFields: ['treatmentPhase'],
+    sources: defaultSources(repos, pack, { now: demoNow }),
+    tools: allTools,
   });
 
   app.get('/health', (_req, res) => res.json({ ok: true, mode: 'demo' }));
 
   // The caretaker context window, with the transparency report.
   app.get('/context', async (_req, res) => {
-    const assembler = new ContextAssembler({ pack });
-    // Demo data lives in Feb 2026; pin "now" so the appointment window matches.
-    const demoNow = () => new Date('2026-02-01T12:00:00.000Z');
-    for (const source of defaultSources(repos, pack, { now: demoNow })) assembler.add(source);
-    const ctx = await assembler.assemble(userId, { knownTokens: patientContext.tokens });
+    const ctx = await chat.assembleContext();
     res.json({ contextText: ctx.contextText, explain: ctx.explain() });
   });
 
@@ -59,15 +56,7 @@ export function createApp() {
     const message = typeof req.body?.message === 'string' ? req.body.message : '';
     if (!message) return res.status(400).json({ error: 'Falta "message".' });
 
-    const result = await runChatLoop({
-      provider,
-      pack,
-      instructions: systemPrompt,
-      messages: [{ role: 'user', content: message }],
-      tools: toToolSpecs(allTools),
-      executeTool: createToolExecutor(allTools, { userId, repos, pack }),
-    });
-
+    const result = await chat.respond({ message });
     res.json({ message: result.message, toolCalls: result.toolCalls?.map((t) => t.name) });
   });
 
