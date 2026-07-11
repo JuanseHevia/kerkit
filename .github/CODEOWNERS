@@ -1,0 +1,21 @@
+# Code owners for kerkit.
+#
+# Every path currently resolves to the sole maintainer. When a second
+# maintainer / recovery owner is added to the @kerkit npm org (see RELEASING.md
+# "Access & recovery"), add them here so review and release ownership are shared
+# in more than one place.
+#
+# GitHub requests review from these owners automatically. It does NOT enforce
+# their approval unless branch protection requires review from Code Owners —
+# see the manual branch-protection step in RELEASING.md.
+
+# Default owner for everything in the repo.
+*                       @JuanseHevia
+
+# Release-critical surface: publish workflow, release runbook, changeset config,
+# and package manifests. Changes here can alter what/how we publish.
+/.github/workflows/     @JuanseHevia
+/.changeset/            @JuanseHevia
+/RELEASING.md           @JuanseHevia
+/scripts/               @JuanseHevia
+/packages/*/package.json @JuanseHevia
