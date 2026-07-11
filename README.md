@@ -189,6 +189,7 @@ kerkit/
 └── docs/
     ├── anonymization-testing-framework.md
     ├── domain-fidelity-review.md
+    ├── public-launch-runbook.md   # Operator checklist for the public-visibility flip
     └── compliance/            # Argentine legal standards + evaluation framework
 ```
 
@@ -199,6 +200,8 @@ kerkit/
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution lanes, the PII rules (all examples use the canonical synthetic persona), and how to share domain knowledge as an eval scenario — no code required.
 
 Bug fixes with tests and Argentine insurer data rows for `@kerkit/pack-argentina` are accepted without prior discussion. Everything else: open an issue first.
+
+**Need help or want to report something?** See [SUPPORT.md](./SUPPORT.md) — support lives in GitHub Issues, and security or PII-leak reports go through the private process in [SECURITY.md](./SECURITY.md).
 
 ## License
 
