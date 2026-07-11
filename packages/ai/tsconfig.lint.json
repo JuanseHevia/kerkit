@@ -1,0 +1,12 @@
+{
+  // Type-check the whole package like the build does, PLUS the README compile
+  // checks (`src/**/*.example.ts`) that the build tsconfig deliberately leaves
+  // out of the shipped `dist`. This is what makes the documented quickstart a
+  // CI gate: `npm run lint` fails if the snippet drifts from the real API.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true
+  },
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts"]
+}
