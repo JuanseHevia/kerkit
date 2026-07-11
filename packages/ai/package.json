@@ -47,7 +47,7 @@
     "dev": "tsc --watch --preserveWatchOutput",
     "build": "tsc",
     "test": "vitest run",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit -p tsconfig.lint.json",
     "clean": "rm -rf dist",
     "prepack": "node ../../scripts/copy-license.mjs"
   },
