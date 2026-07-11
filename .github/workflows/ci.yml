@@ -39,6 +39,24 @@ jobs:
       - run: npm run lint
       - run: npm run test
 
+  dependency-audit:
+    name: Dependency audit (high/critical gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Block the merge (and the public launch) on any known high or critical
+      # advisory in the resolved dependency tree. Runs against the committed
+      # lockfile so the gate reflects exactly what consumers would install.
+      # See issue #12: drizzle-orm < 0.45.2 carried a high-severity
+      # identifier-escaping SQLi advisory (GHSA-gpj5-g38j-94v9).
+      - name: npm audit (fail on high/critical)
+        run: npm audit --audit-level=high
+
   pack-audit:
     name: npm pack content audit
     runs-on: ubuntu-latest
