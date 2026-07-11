@@ -1,0 +1,65 @@
+name: Release
+
+# Changesets-driven release. Two phases, one workflow:
+#
+#   1. When changesets land on `main`, this opens/updates a "Version Packages"
+#      PR that runs `changeset version` (bumps every @kerkit/* package in
+#      lockstep via the fixed group, updates internal deps, writes CHANGELOGs).
+#   2. When that PR merges (no unreleased changesets remain), the same workflow
+#      runs `changeset publish` — building, publishing to npm with provenance,
+#      pushing git tags, and creating GitHub Releases from the changelog.
+#
+# Versioning therefore always runs *before* publishing, and the tag, GitHub
+# Release, and npm version are produced from the same changeset run so they
+# agree. See RELEASING.md for the full runbook and the manual first-publish path.
+
+on:
+  push:
+    branches: [main]
+
+# Never let two release runs publish concurrently.
+concurrency: release-${{ github.ref }}
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Version or publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the Version Packages PR, tags, and GitHub Releases
+      pull-requests: write # open/update the Version Packages PR
+      id-token: write # npm provenance (and OIDC trusted publishing, if enabled)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create Release PR or publish to npm
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: npm run version-packages
+          publish: npm run release
+          title: "chore(release): version packages"
+          commit: "chore(release): version packages"
+          createGithubReleases: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Least-privilege npm automation token (Automation type, publish scope
+          # on @kerkit only). Prefer OIDC trusted publishing once the packages
+          # exist on npm — see RELEASING.md. Provenance still requires id-token.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"

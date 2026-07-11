@@ -36,7 +36,7 @@ npm run build
 npm run test
 ```
 
-Versioning is lockstep across packages via [changesets](https://github.com/changesets/changesets) — run `npm run changeset` with your PR. Pre-1.0, a minor bump may be breaking; breaking changes are documented in the changelog.
+Versioning is lockstep across packages via [changesets](https://github.com/changesets/changesets) — run `npm run changeset` with your PR. Pre-1.0, a minor bump may be breaking; breaking changes are documented in the changelog. Maintainers: the publish flow, credentials, and rollback steps live in [`RELEASING.md`](./RELEASING.md).
 
 ## Sharing domain knowledge
 
