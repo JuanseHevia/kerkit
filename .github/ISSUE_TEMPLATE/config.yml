@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Questions & support
+    url: https://github.com/JuanseHevia/kerkit/blob/main/SUPPORT.md
+    about: Where to ask usage questions and how support works. Support lives in Issues; Discussions is not enabled.
   - name: Security or PII-leak report
     url: https://github.com/JuanseHevia/kerkit/blob/main/SECURITY.md
     about: Do not file a public issue for vulnerabilities or data leaks. Follow the private disclosure process in SECURITY.md.
