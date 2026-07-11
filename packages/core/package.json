@@ -19,15 +19,22 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "NOTICE"
   ],
   "sideEffects": false,
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "tsc --watch --preserveWatchOutput",
     "build": "tsc",
     "test": "vitest run",
     "lint": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
     "zod": "^3.24.0"

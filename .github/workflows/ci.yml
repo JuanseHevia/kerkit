@@ -57,6 +57,23 @@ jobs:
       - name: npm audit (fail on high/critical)
         run: npm audit --audit-level=high
 
+  pack-consumer:
+    name: Packed-consumer verification
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Packs every publishable package, inspects tarball contents (LICENSE,
+      # NOTICE, README, metadata, JS + declarations; no tests/sources/secrets),
+      # installs them into a fresh non-workspace project, strict-typechecks with
+      # skipLibCheck:false, and executes the main + subpath imports at runtime.
+      - run: node scripts/verify-tarballs.mjs
+
   pack-audit:
     name: npm pack content audit
     runs-on: ubuntu-latest

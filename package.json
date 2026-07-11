@@ -9,6 +9,12 @@
   "bin": {
     "kerkit-demo": "./scripts/demo.bundle.mjs"
   },
+  "files": [
+    "scripts/demo.bundle.mjs",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
