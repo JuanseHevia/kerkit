@@ -10,3 +10,8 @@ coverage/
 .playwright-mcp/
 .gstack/
 docs/private/
+
+# LICENSE/NOTICE are copied into each package at prepack time (scripts/copy-license.mjs).
+# The canonical copies live at the repo root; the per-package copies are generated.
+packages/*/LICENSE
+packages/*/NOTICE
