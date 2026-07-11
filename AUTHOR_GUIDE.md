@@ -2,7 +2,9 @@
 
 > A full rundown of the repository for its author: what ships, how it works, where the
 > bodies are buried, and what to check before you call it 1.0-ready.
-> Written 2026-07-02 against `main` @ `434f1ff`. All 11 workspace test suites pass (~160 tests).
+> Written 2026-07-02, refreshed 2026-07-11 against `main` @ `eb04972` — M1, the
+> `RedactionSession` provider sink, is now shipped. `npm run test` is green: 161 tests
+> across the five workspace packages, plus 11 in the two example apps (172 total, 18 suites).
 
 ---
 
@@ -59,9 +61,9 @@ kerkit/
 **Facts worth having in your head:**
 
 - All five packages are at **0.1.0**, versioned in lockstep via Changesets, **not yet published to npm**. The README says so truthfully.
-- **16 commits**, June 12 → July 1, 2026. The M1–M5 milestone commits landed the five packages in one day (June 12); everything since is domain fidelity, privacy planning, compliance, demos, and contributor onboarding.
+- **18 commits**, June 12 → July 7, 2026. The five package-landing milestone commits shipped in one day (June 12); everything since is domain fidelity, privacy planning, compliance, demos, contributor onboarding, and — most recently — the M1 privacy-sink implementation (`eb04972`, July 7) this refresh documents.
 - Tooling: npm workspaces + Turborepo + TypeScript 5 (strict, ESM, NodeNext) + Vitest + Zod. `@kerkit/core` has **one runtime dependency: zod**.
-- Node ≥ 22 required. `npm run build && npm run test` → 11 suites, ~160 tests, all green as of this writing.
+- Node ≥ 22 required. `npm run build && npm run test` → 18 suites, 172 tests, all green as of this writing (161 across the five packages, 11 across the two example apps).
 - The **canonical synthetic persona** is load-bearing across the whole repo: Marta Pérez (patient, DNI 12.345.678), Carlos Pérez (caretaker), Dra. Laura Gómez, "Obra Social Demo Salud". Every fixture, test, doc example, and demo uses it; the gitleaks config allowlists exactly these values and flags any other Argentine-identifier-shaped string.
 
 ## 3. Architecture: how the five packages fit together
@@ -97,9 +99,14 @@ examples ──▶ all five
 
 **The invariant that ties it together:** data flows repos → sources → `ContextAssembler`
 (structural redaction + sweep) → prompt → provider, and repos → tool handler →
-`redactedRowsResult` (same discipline) → provider. Both LLM ingresses apply
-classification-driven redaction; nothing else is supposed to reach `provider.generate()`.
-(Section 13 covers where that invariant is currently porous.)
+`redactedRowsResult` (same discipline) → provider. As of M1 (`eb04972`) a shared
+`RedactionSession` also sweeps **every application-originated string at the provider
+boundary** inside `runChatLoop` — instructions, message history, tool output, and
+tool-error strings — so the previously porous ingresses (external-tool output, raw user
+messages, exceptions, `write_note` echo) close at one chokepoint whenever the session is
+threaded. `createRedactedChat` wires that session for you. (Section 13 covers the residual
+limitations — chiefly that the guarantee is opt-in via the session, and free-text sweep
+recall is measured, not proven.)
 
 ## 4. Package deep dive: @kerkit/core
 
@@ -147,8 +154,11 @@ hooks (type slot, Zod `.extend()`, Drizzle `extend` map, `extendClassification`)
 
 `classification.ts` (the `Classification<T>` mapped type — an unclassified field is a
 **compile error**), `classifications.ts` (pre-built maps for every entity),
-`redaction.ts` (`redactEntityForLlm` + `sweepText`), `consent.ts` (`ConsentRecord`,
-`isConsentActive`, `DELETION_ORDER`, `ExportBundle`), `audit.ts` (7 `AuditAction`s).
+`redaction.ts` (`redactEntityForLlm` + `sweepText` + the exported `tokenBaseName` seam),
+[`session.ts`](packages/core/src/privacy/session.ts) (the M1 `RedactionSession` — the
+request-scoped, collision-safe token allocator + shared known-value map the provider sink
+is built on), `consent.ts` (`ConsentRecord`, `isConsentActive`, `DELETION_ORDER`,
+`ExportBundle`), `audit.ts` (7 `AuditAction`s).
 
 ### compliance/ — the Argentine control catalog (detail in §10)
 
@@ -169,9 +179,11 @@ probes in [fixture-probe.ts](packages/core/src/compliance/fixture-probe.ts).
   plus the optional `ExternalSources` bridge (searchEmail, listCalendarEvents,
   listDocuments) that ai's external tools degrade gracefully without.
 
-**Tests:** 6 files, ~62 cases — state-machine matrix, date boundaries, task blocking,
+**Tests:** 7 files, 93 cases — state-machine matrix, date boundaries, task blocking,
 classification completeness (every fixture field classified), the "marketing-claim"
-redaction test (no direct identifier survives), and green/red compliance-probe paths.
+redaction test (no direct identifier survives), green/red compliance-probe paths, and the
+`RedactionSession` suite (collision-safe per-value tokens, value dedup, longest-first
+fail-closed sweep, foreign-token escaping).
 
 ## 5. Package deep dive: @kerkit/pack-argentina
 
@@ -211,9 +223,9 @@ a no-real-institution-names check, and identifier sweep behavior.
 ## 6. Package deep dive: @kerkit/ai
 
 **Lives in [packages/ai/src](packages/ai/src)** (~1,600 lines). Four entry points:
-`@kerkit/ai` (main), `@kerkit/ai/mcp`, `@kerkit/ai/openai`, `@kerkit/ai/demo`
-(fixture repos — deliberately excluded from the main index so test data can't leak into
-production imports by accident).
+`@kerkit/ai` (main — including `createRedactedChat`, the M1 safe default),
+`@kerkit/ai/mcp`, `@kerkit/ai/openai`, `@kerkit/ai/demo` (fixture repos — deliberately
+excluded from the main index so test data can't leak into production imports by accident).
 
 ### The context pipeline
 
@@ -240,7 +252,22 @@ production imports by accident).
   `maxRounds` (default 5) of `provider.generate()` → execute tool calls → feed results
   back. Tool errors are caught and returned to the model as `{ error }`, never thrown.
   Provider `state` is threaded through opaquely. Fallback copy
-  (`assistant.fallback.empty` / `toolRoundsExhausted`) comes from the pack.
+  (`assistant.fallback.empty` / `toolRoundsExhausted`) comes from the pack. **M1 added the
+  provider-sink pass:** when a `RedactionSession` is supplied, every application-originated
+  string — instructions, message history, tool output, and tool-error strings — is swept
+  through the session immediately before `generate()`
+  ([chat-loop.ts#L84](packages/ai/src/loop/chat-loop.ts#L84) and
+  [#L131](packages/ai/src/loop/chat-loop.ts#L131)), and `result.redaction` exposes what the
+  sink did. Omit the session and a one-time `[KRK_NO_SESSION]` warning fires if a patient
+  context is present. The model-emitted `message` it returns is **not** sink-swept — keep
+  your own output leak-check.
+- **[factory.ts](packages/ai/src/factory.ts):** `createRedactedChat` — the M1 safe default.
+  It constructs **one** `RedactionSession` and threads it through the patient block, context
+  assembly, tool execution, and the sink, so a caller wires one object instead of four call
+  sites. `respond({ message, history })` runs a turn; `.session.tokenToValue()` rehydrates
+  the UI and `.session.explain()` debugs. Hand-threading `session` into
+  `buildPatientContextBlock` / `assemble` / `runChatLoop` yourself is the lower-level path,
+  kept for advanced use.
 - **[prompts/builder.ts](packages/ai/src/prompts/builder.ts):** `buildSystemPrompt` always
   includes the pack's privacy and boundary blocks — `extraInstructions` can only *append*,
   never replace; there is no override parameter by design. `buildPatientContextBlock`
@@ -261,8 +288,13 @@ production imports by accident).
   (`read_email` / `read_calendar` / `read_documents`) that degrade gracefully when
   `ExternalSources` isn't wired.
 - **[mcp/redact-rows.ts](packages/ai/src/mcp/redact-rows.ts):** `redactedRowsResult` —
-  every read tool funnels rows through structural redaction + sweep before returning.
-  **This is where the known tool-path gap lives — see §13.**
+  every read tool funnels rows through structural redaction + sweep before returning. When
+  the `ToolContext` carries the shared `RedactionSession` (as `createRedactedChat` wires
+  it), rows redact through the session's allocator and known-value map, so a patient name
+  sitting in a note's free text becomes the **same** token as the structured field — this
+  is what closed the old tool-path name leak. The legacy no-session path still exists
+  (structural redaction + local-token sweep only) and is exactly what the Layer-0 canary
+  test proves leaks the name. See §13.
 - **[mcp/executor.ts](packages/ai/src/mcp/executor.ts):** `toToolSpecs` (via the small
   purpose-built Zod→JSON-Schema converter in
   [json-schema.ts](packages/ai/src/mcp/json-schema.ts)) and `createToolExecutor`
@@ -271,9 +303,13 @@ production imports by accident).
   server, with two user modes — `injected` (a `_userId` param the system supplies; missing
   = hard error, no fallback user) and `static` (personal single-user deployments).
 
-**Tests:** 4 files — assembler leak checks (DNI never survives, even in free text),
-prompt non-removability, chat-loop rounds/errors/fallbacks, and tool-level checks
-(sweeps, opt-ins respected, Zod rejection, external degradation).
+**Tests:** 5 files, 26 cases — assembler leak checks (DNI never survives, even in free
+text), prompt non-removability, chat-loop rounds/errors/fallbacks, tool-level checks
+(sweeps, opt-ins respected, Zod rejection, external degradation), and the **Layer-0
+sink-canary** ([sink-canary.test.ts](packages/ai/src/sink-canary.test.ts)): it asserts the
+`createRedactedChat` safe path scrubs both the DNI *and* the non-regex name from every
+provider input, that the raw no-session path **leaks** the name (proving the guarantee is
+opt-in), and that the note-text name maps to the same token as the patient field.
 
 ## 7. Package deep dive: @kerkit/server
 
@@ -339,15 +375,20 @@ build**; at runtime, an unclassified extension field defaults to `sensitive-heal
 
 ### Pass 1 — structural redaction
 
-[`redactEntityForLlm(entity, classification, { allowSensitiveFields })`](packages/core/src/privacy/redaction.ts):
+[`redactEntityForLlm(entity, classification, { allowSensitiveFields, allocateToken, pseudonymizeFields })`](packages/core/src/privacy/redaction.ts)
+(usually reached through `RedactionSession.redactEntity`):
 
-- `direct-identifier` → replaced with a token derived from the field name:
-  `name` → `«NAME»`, `nationalId` → `«NATIONAL_ID»`. Original values go into a
-  `tokens: Map<token, value>` for UI rehydration.
+- `direct-identifier` → replaced with a placeholder token. Standalone, the token is derived
+  from the field name (`nationalId` → `«NATIONAL_ID»`). Under a `RedactionSession` the
+  `allocateToken` seam mints **collision-safe, per-value** tokens (`«PERSON_NAME_1»`,
+  `«PERSON_NAME_2»`) with value→token dedup, so two different people never share one token.
+  Original values go into a `tokens: Map<token, value>` for UI rehydration.
 - `sensitive-health` → **omitted** unless the field is explicitly listed in
   `allowSensitiveFields` at the call site (an in-code, per-call opt-in — e.g. the
   prescriptions source opts in `medicationName`).
-- `logistics` / `public` → pass through.
+- `logistics` / `public` → pass through, **except** the opt-in `pseudonymizeContacts`
+  policy (default off): when on, a `Person`/`Institution` `phone`/`email`/`address` is
+  tokenized like a direct identifier via the `pseudonymizeFields` seam.
 
 ### Pass 2 — the free-text sweep
 
@@ -356,16 +397,25 @@ sub-passes: first replace any **known value** from the token map with its token 
 "Marta Pérez" typed into a note), then run the pack's **identifier regexes** and replace
 matches with `«REDACTADO»`.
 
-### Where the two passes are applied
+### Where the passes are applied
 
 1. **Context assembly** — `ContextAssembler.assemble()` structurally redacts every item
-   from every source, then sweeps the joined text with patterns + the full accumulated
-   token map (including `knownTokens` handed in from `buildPatientContextBlock`).
+   from every source, then sweeps the joined text with patterns + the accumulated token map
+   (from `buildPatientContextBlock`, either as `knownTokens` or, preferably, a shared
+   `session`).
 2. **Tool output** — every read tool returns through `redactedRowsResult`, which
-   structurally redacts each row and sweeps the serialized JSON with patterns + *that
-   call's own* tokens.
+   structurally redacts each row and sweeps the serialized JSON. With a shared session it
+   uses the session's allocator + known-value map; without one it falls back to *that
+   call's own* tokens (the legacy path that can't see the patient name).
+3. **The provider sink (M1)** — `runChatLoop`, given the shared `RedactionSession`, sweeps
+   **every application-originated string** — instructions, message history, tool output,
+   and tool-error strings — immediately before each `provider.generate()`. This is the
+   single chokepoint that catches the ingresses the first two passes miss (external-tool
+   output, raw user messages, exceptions, `write_note` echo).
 
-The `redactionMap` returned by assembly lets the app show real names in its own UI while
+A single `RedactionSession` threaded through all three — which `createRedactedChat` does
+for you — is what makes a name in a note's free text map to the **same** token as the
+patient field. Its `tokenToValue()` map lets the app show real names in its own UI while
 the model only ever sees tokens.
 
 ### Consent, deletion, audit
@@ -423,25 +473,30 @@ Three tiers of "show, don't tell", all over the synthetic persona, all key-free 
 
 1. **The npx demo** ([scripts/demo.mjs](scripts/demo.mjs), bundled to
    `demo.bundle.mjs` via esbuild and exposed as the repo `bin`): prints the raw patient
-   record, the redacted projection, assembles the full context, and greps it for the raw
-   DNI — exits 1 on failure, `✅ PASS` otherwise. ~70 lines using the same
-   `ContextAssembler` as everything else. Remember: **the bundle is a build artifact
-   committed to the repo** — `npm run build:demo` must be re-run when ai/core/pack change,
-   or `npx github:JuanseHevia/kerkit` serves stale code.
+   record and the redacted projection, then — since M1 — runs a real tool-calling turn
+   through `createRedactedChat` and greps every model input for **both** the raw DNI *and*
+   the raw name (which hides in a note's free text). Exits 1 on failure, `✅ PASS`
+   otherwise. The old demo only checked the regex-matchable DNI, so it green-lit the name
+   bug. Remember: **the bundle is a build artifact committed to the repo** —
+   `npm run build:demo` must be re-run when ai/core/pack change, or
+   `npx github:JuanseHevia/kerkit` serves stale code.
 2. **examples/minimal-caretaker** — the copy-me starter: an ~80-line Express app wiring
-   fixture repos + `ContextAssembler` + `buildSystemPrompt` + `runChatLoop` (scripted
-   `MockProvider`, or OpenAI with a key) + the privacy router over an in-memory store.
-   Endpoints: `/health`, `/context`, `/chat`, `/privacy/*`. The pitch: swapping
-   MockProvider→OpenAIResponsesAdapter and fixtures→Drizzle repos is the whole path to
-   production; the wiring shape doesn't change.
+   fixture repos + `createRedactedChat` (one shared session across the patient block,
+   context assembly, tools, and the sink — its `/chat` route now redacts free-text names,
+   which it didn't before M1), a scripted `MockProvider` (or OpenAI with a key), and the
+   privacy router over an in-memory store. Endpoints: `/health`, `/context`, `/chat`,
+   `/privacy/*`. The pitch: swapping MockProvider→OpenAIResponsesAdapter and
+   fixtures→Drizzle repos is the whole path to production; the wiring shape doesn't change.
 3. **examples/gallery** — the Docker showcase (React/Vite/Tailwind + Express). Four
    scenes: Landing, **Privacy X-Ray** (per-field raw vs model view with disposition badges
    — tokenized/dropped/allowed/swept/passthrough — plus before/after free-text sweep),
    **Assistant** (live tool-call trace with a per-response leak-check pill that scans the
    response for the persona's raw identifiers), **Dashboard** (cycle progress ring, care
-   events with auth/prep pills, dependency-aware checklist). The chat route's leak check is
-   a hardcoded list of the persona's sensitive values scanned against the JSON response —
-   a demo device, not the real enforcement.
+   events with auth/prep pills, dependency-aware checklist). Since M1 it threads one shared
+   `RedactionSession` through the patient block, assembly, and the chat sink, and its old
+   manual `sweepText` workaround is deleted (the SDK sink owns that now); the leak-check
+   pill stays green. That pill is still a demo device — a hardcoded list of the persona's
+   sensitive values scanned against the JSON response — not the real enforcement.
 
 ## 12. CI, release machinery, contributor surface
 
@@ -472,47 +527,61 @@ APIs is a security bug in kerkit*, while auth is the consumer's.
 ## 13. Known gaps, bugs, and the approved roadmap
 
 You approved a hardening plan (PR #1,
-[docs/anonymization-testing-framework.md](docs/anonymization-testing-framework.md)) whose
-committed scope — **M1 + M2 — has not been implemented yet**. This section is the honest
-delta between what the code does today and what the plan commits to.
+[docs/anonymization-testing-framework.md](docs/anonymization-testing-framework.md)).
+**M1 — the `RedactionSession` provider sink — shipped in `eb04972`** and closed the token
+collision, the tool-path name leak, and the un-swept ingresses (items 1–3 below). This
+section is the honest delta between what the code does today and what the plan still
+commits to; fixed findings are marked ✅ and kept as historical context (with a *Was:* /
+*Now:* split) so the before/after stays legible.
 
-### Confirmed bugs / gaps in the shipped code
+### Findings and their current status
 
-1. **`«NAME»` token collision (critical, plan item A3).**
-   `placeholderFor()` derives tokens from *field names*, so two different people both
-   become `«NAME»` and the redaction map keeps only the last value
-   ([redaction.ts:19](packages/core/src/privacy/redaction.ts:19), overwrite at
-   [assembler.ts:80](packages/ai/src/context/assembler.ts:80)). The fix in the plan:
-   per-request unique tokens (`«PERSON_NAME_1»`), value→token dedup, and escaping
-   token-shaped substrings in user input so someone typing `«NAME»` can't poison the map.
+1. **`«NAME»` token collision — ✅ FIXED in M1 (plan item A3).**
+   *Was:* `placeholderFor()` derived tokens from *field names*, so two different people both
+   became `«NAME»` and the redaction map kept only the last value. *Now:* `RedactionSession`
+   allocates per-value, collision-safe tokens (`«PERSON_NAME_1»`, `«PERSON_NAME_2»`) with
+   value→token dedup, and `escapeForeignTokens` neutralizes token-shaped substrings in user
+   input so someone typing `«NAME»` can't poison the map
+   ([session.ts#L108](packages/core/src/privacy/session.ts#L108)).
 
-2. **The MCP tool-path token leak (the "SDK gap").**
-   [`redactedRowsResult`](packages/ai/src/mcp/redact-rows.ts) sweeps tool output with the
-   pack's regexes plus only *its own rows'* structural tokens. The session's known
+2. **The MCP tool-path token leak (the "SDK gap") — ✅ FIXED in M1.**
+   *Was:* [`redactedRowsResult`](packages/ai/src/mcp/redact-rows.ts) swept tool output with
+   the pack's regexes plus only *its own rows'* structural tokens; the session's known
    identifiers — most importantly the **patient's name** from `buildPatientContextBlock`
-   — are never threaded in. Names aren't regex-matchable, so a patient or doctor name
-   sitting inside a note's free text returned by `read_notes` **reaches the model raw**.
-   Symmetrically, tokens minted inside the tool call are never returned to the app, so
-   they can't be rehydrated in the UI. Today, apps must sweep tool output themselves.
-   The plan's `RedactionSession` (A0) fixes this at the root.
+   — were never threaded in, so a name sitting inside a note's free text returned by
+   `read_notes` reached the model raw. *Now:* when the `ToolContext` carries the shared
+   `RedactionSession`, rows redact through the session's allocator and known-value map
+   ([redact-rows.ts#L25](packages/ai/src/mcp/redact-rows.ts#L25)), and the tokens are the
+   session's, so the app can rehydrate them. **Caveat:** this holds only on the session
+   path — the legacy no-session tool path still leaks the name, which the Layer-0 canary
+   test asserts on purpose (proving the guarantee is opt-in).
 
-3. **Un-swept provider ingresses.** The plan's threat-model inventory
-   (ingress table, items 3–7) is still accurate: external tool output
-   (email/calendar/docs) returns raw; inbound **user messages** are sent raw; **tool
-   exception messages** go to the model unswept
-   ([chat-loop.ts:75](packages/ai/src/loop/chat-loop.ts:75)); `write_note` echoes
-   unswept `note.content` back; `instructions` accepts unrestricted strings. M1's
-   provider-sink enforcement (A0–A2) + Layer-0 canary tests close all of these at one
-   chokepoint.
+3. **Un-swept provider ingresses — ✅ FIXED in M1 (at the sink).**
+   *Was:* external tool output (email/calendar/docs) returned raw; inbound **user messages**
+   were sent raw; **tool exception messages** went to the model unswept; `write_note` echoed
+   unswept `note.content`; `instructions` accepted unrestricted strings. *Now:* `runChatLoop`
+   with a session sweeps instructions, message history, tool output, and tool-error strings
+   at the provider boundary ([chat-loop.ts#L84](packages/ai/src/loop/chat-loop.ts#L84) and
+   [#L131](packages/ai/src/loop/chat-loop.ts#L131)) — one chokepoint covering all five.
+   *Residual:* the guarantee is **opt-in** (you must thread the session — use
+   `createRedactedChat` or pass `{ session }`); the model-emitted answer is not sink-swept;
+   and branded `SafeProviderInput` types (plan A2) were deliberately deferred to keep the
+   signature non-breaking, so "forgot to redact" is not yet a compile error.
 
-4. **PII currently classified `logistics`.** `prescriberName`, `personName`, signal
-   `sender`, institution `email`/`phone`/`address` flow to the model today by design
-   choice; plan item A7 reclassifies the genuinely-PII contact fields and documents the
-   residual mosaic risk.
+4. **PII classified `logistics` — ◑ partially addressed (plan item A7).**
+   `Signal.sender` is now reclassified to `direct-identifier`
+   ([classifications.ts#L148](packages/core/src/privacy/classifications.ts#L148)), and the
+   opt-in `pseudonymizeContacts` policy (default off) tokenizes `Person`/`Institution`
+   contact fields when a deployment wants it. *Residual (by design):* `prescriberName`,
+   `personName`, and institution `email`/`phone`/`address` still flow to the model by
+   default — a clinic's phone is the payload of a logistics assistant, not patient PHI — so
+   the mosaic-re-identification risk is documented, not eliminated.
 
-5. **Narrow sweep patterns.** Five regexes; no unlabeled undotted DNI, no AR phones,
-   emails, or addresses; no normalization pre-pass (zero-width chars, spaced digits
-   defeat the sweep). Plan items A4/A5.
+5. **Narrow sweep patterns — ⚠️ still open (plan items A4/A5).**
+   Five regexes; no unlabeled undotted DNI, no AR phones, emails, or addresses; no
+   normalization pre-pass (zero-width chars, spaced digits still defeat the sweep). This is
+   the residual limitation behind the honest "free-text recall is measured, never 100%"
+   posture — unchanged by M1.
 
 ### Structural/roadmap gaps (not bugs)
 
@@ -533,11 +602,18 @@ delta between what the code does today and what the plan commits to.
 
 ### Suggested order of attack
 
-M1 from the plan is severable and was scoped as "ship this week" back in June:
-`RedactionSession` + provider-boundary enforcement + branded `SafeProviderInput` types +
-the token-collision fix + A7 reclassification + Layer-0 canary tests. It simultaneously
-fixes items 1–4 above and is the prerequisite for honestly keeping the README's
-"your app cannot accidentally leak them" sentence.
+M1 shipped (`RedactionSession` + provider-boundary enforcement + the token-collision fix +
+A7 `Signal.sender` reclassification + the `pseudonymizeContacts` policy + Layer-0 canary
+tests), fixing items 1–3 and part of 4 above. What remains, roughly in order:
+
+1. **A2 — branded `SafeProviderInput` types**, so "forgot to redact" is a compile error, not
+   a convention (deferred from M1 to keep the signature non-breaking).
+2. **A4/A5 — normalization pre-pass + widened, tiered patterns** (item 5), the prerequisite
+   for a measured per-type recall posture.
+3. **The es-AR corpus and de-identification oracle** (plan M2).
+
+Until A2 lands, the sink guarantee is opt-in: the safe path is `createRedactedChat`, and the
+README privacy claim stays honestly scoped to the proven structural invariant.
 
 ## 14. Author's self-check
 
@@ -552,8 +628,9 @@ You should feel comfortable if you can answer yes to each of these:
   opt-in lives (in code, per call site — sources, tools, patient block)?
 - [ ] …why erasure can be legally blocked (retention floors as the Arts. 16–17
   legal-preservation exception) and how profiles gate that?
-- [ ] …exactly which ingress paths to `provider.generate()` are swept today and which five
-  are not (§13.3)?
+- [ ] …which ingress paths to `provider.generate()` the M1 sink sweeps (instructions,
+  message history, tool output, tool-error strings — via a threaded `RedactionSession`),
+  and why the guarantee is opt-in until branded types (A2) land (§13.3)?
 
 **Do I remember the operational traps…**
 - [ ] `scripts/demo.bundle.mjs` is a committed build artifact — rebuild it
@@ -564,9 +641,12 @@ You should feel comfortable if you can answer yes to each of these:
 - [ ] Prompt changes require an eval delta per CONTRIBUTING.md — including your own.
 
 **Before the first npm publish…**
-- [ ] M1 (the sink) implemented — otherwise the README privacy claim is ahead of the code
-  on tool paths and user messages.
-- [ ] `«NAME»` collision fixed (it's user-visible the moment a context contains two people).
+- [x] M1 (the sink) implemented (`eb04972`) — the README privacy claim now matches the code
+  on the session path.
+- [x] `«NAME»` collision fixed — per-value collision-safe tokens ship in `RedactionSession`.
+- [ ] Decide whether to land A2 (branded `SafeProviderInput`) before publish or ship with
+  the opt-in sink and document it — until then the guarantee depends on callers threading a
+  session (`createRedactedChat`).
 - [ ] Decide whether `@kerkit/ui` publishes as tokens-only or waits for the first
   component wave.
 - [ ] Re-run the pack audit against the real tarballs (`npm pack`) and skim the file lists.
@@ -580,7 +660,7 @@ You should feel comfortable if you can answer yes to each of these:
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution lanes, PII rules, eval-scenario pathway |
 | [SECURITY.md](SECURITY.md) | Disclosure process; PII-to-LLM leaks are in scope, auth is not |
 | [NOTICE](NOTICE) | Not-a-medical-device scope disclaimer |
-| [docs/anonymization-testing-framework.md](docs/anonymization-testing-framework.md) | The approved (D2) privacy hardening plan: RedactionSession sink, branded types, canary tests, es-AR corpus. **Committed: M1+M2, unimplemented** |
+| [docs/anonymization-testing-framework.md](docs/anonymization-testing-framework.md) | The approved (D2) privacy hardening plan: RedactionSession sink, branded types, canary tests, es-AR corpus. **M1 shipped (`eb04972`); A2 branded types + M2 (A4–A7, corpus, oracle) still pending** |
 | [docs/domain-fidelity-review.md](docs/domain-fidelity-review.md) | Real-workflow ground truth (7 loops), fidelity scorecard, next-primitive recommendations |
 | [docs/compliance/argentina-standards.md](docs/compliance/argentina-standards.md) | Cited legal research: Ley 25.326 / 26.529 / 27.553 obligations as falsifiable requirements, confidence-tagged |
 | [docs/compliance/evaluation-framework.md](docs/compliance/evaluation-framework.md) | The control-catalog + probe architecture; slices 1 (shipped) through 4 (deferred) |

@@ -38,8 +38,8 @@ Everything that reaches `provider.generate()` (`instructions`, `input`, `toolRes
 | 2 | Identifier in free text (note content) | regex sweep | ⚠️ 5 patterns, no normalization |
 | 3 | **External tools** (email/calendar/docs) | **none** | ❌ `textResult(raw)` |
 | 4 | **Inbound user messages** | **none** | ❌ `messages` sent raw |
-| 5 | **Tool exceptions** | **none** | ❌ `{ error: err.message }` → model ([chat-loop.ts:75](../packages/ai/src/loop/chat-loop.ts:75)) |
-| 6 | **`write_note` echo** | **none** | ❌ returns unswept `note.content` ([tools.ts:174](../packages/ai/src/mcp/tools.ts:174)) |
+| 5 | **Tool exceptions** | **none** | ❌ `{ error: err.message }` → model ([chat-loop.ts#L75](../packages/ai/src/loop/chat-loop.ts#L75)) |
+| 6 | **`write_note` echo** | **none** | ❌ returns unswept `note.content` ([tools.ts#L174](../packages/ai/src/mcp/tools.ts#L174)) |
 | 7 | **`instructions` / system prompt** | builder helper only | ⚠️ accepts unrestricted strings |
 | 8 | Misclassified `logistics` PII | passes through by design | ❌ `prescriberName`, `personName`, `sender`, institution `email`/`phone`/`address` are PII flowing today |
 | 9 | Mosaic re-identification | none | ⚠️ unmeasured |
@@ -66,7 +66,7 @@ A `RedactedProviderClient` (or a redaction step inside `runChatLoop` immediately
 `ToolResult` and provider inputs become discriminated/branded (`raw-external`, `classified-rows`, `safe-text`). Raw constructors (`textResult`) become internal; only the executor/session can mint provider-bound text. "Forgot to redact" becomes a **compile error**, mirroring how `Classification<T>` already works. A new tool that returns raw text cannot type-check.
 
 ### A3. Collision-safe token scheme (fixes a critical bug)
-`placeholderFor()` derives `«NAME»` from the field name, so two people both become `«NAME»` and the map keeps only the last value ([redaction.ts:19](../packages/core/src/privacy/redaction.ts:19), overwrite at [assembler.ts:80](../packages/ai/src/context/assembler.ts:80)). Fix: per-request unique tokens (`«PERSON_NAME_1»`), value→token dedup within a request, reject token/value conflicts, and **escape token-shaped substrings in user input** so a user typing `«NAME»` can't poison the map.
+`placeholderFor()` derives `«NAME»` from the field name, so two people both become `«NAME»` and the map keeps only the last value ([redaction.ts#L19](../packages/core/src/privacy/redaction.ts#L19), overwrite at [assembler.ts#L80](../packages/ai/src/context/assembler.ts#L80)). Fix: per-request unique tokens (`«PERSON_NAME_1»`), value→token dedup within a request, reject token/value conflicts, and **escape token-shaped substrings in user input** so a user typing `«NAME»` can't poison the map.
 
 ### A4. Normalization engine + span core (prerequisite for the corpus, was mis-scoped as corpus work)
 A normalization pre-pass (NFKC, strip zero-width/control chars, collapse intra-token whitespace) with an **offset map back to original text**, then a **span-based detector core**: detectors return `{start, end, type, confidence}`; overlaps resolved deterministically (higher confidence, then longest span); replacements applied right-to-left. This is also the `PiiDetector` interface (A6) and what makes per-type recall measurable. `sweepText` becomes the default span-producing impl. **Do this before the harness.**

@@ -54,7 +54,7 @@ npm run build
 npm run test
 ```
 
-All 11 workspace test suites should pass (~160 tests). Then run the full demo server — no database, no OAuth, no LLM key:
+All 18 test suites should pass (172 tests). Then run the full demo server — no database, no OAuth, no LLM key:
 
 ```bash
 cd examples/minimal-caretaker
