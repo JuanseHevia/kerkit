@@ -41,9 +41,21 @@ jobs:
         run: git fetch --no-tags origin +refs/heads/main:refs/heads/main || true
 
       - name: Changeset status
+        if: github.head_ref != 'changeset-release/main'
         # Prints the pending release plan (the source of the generated release
         # notes) and fails if any changeset file is malformed.
         run: npx changeset status
+
+      - name: Validate generated version PR
+        if: github.head_ref == 'changeset-release/main'
+        # A generated version PR has intentionally consumed its changesets, so
+        # `changeset status` would reject the package-version diff. Assert the
+        # reserved release branch has no unconsumed release notes instead.
+        run: |
+          if find .changeset -maxdepth 1 -name '*.md' -print -quit | grep -q .; then
+            echo "::error::Generated version PR still contains pending changesets"
+            exit 1
+          fi
 
       - name: Validate publish (dry-run, all packages)
         run: node scripts/verify-publish.mjs

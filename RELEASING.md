@@ -66,7 +66,8 @@ runs on every push to `main` and does one of two things via
 1. **Changesets are pending →** it opens/updates a **"Version Packages"** PR.
    That PR runs `changeset version`: bumps all five packages to the next
    version, updates internal `@kerkit/*` dependency ranges in lockstep, consumes
-   the changeset files, and writes each `CHANGELOG.md` from them.
+   the changeset files, writes each `CHANGELOG.md` from them, and refreshes the
+   npm lockfile workspace metadata.
 2. **No pending changesets (the Version PR was merged) →** it runs
    `npm run release` (`turbo build && changeset publish`): builds, publishes to
    npm **with provenance**, creates the git tags, and creates a **GitHub
@@ -89,6 +90,13 @@ come from the same `changeset publish` run**, so they agree by construction.
 > `contents: read` and **no** secrets and **no** `id-token`, so a fork PR has
 > nothing to exfiltrate and still proves a release would succeed.
 
+GitHub repository settings must also allow Actions to create pull requests
+(Settings → Actions → General → Workflow permissions). Keep the default token
+permission read-only; the release job requests only its explicit scoped writes.
+If an administrator does not enable the repo-level PR switch, the action can
+still generate and push `changeset-release/main`, but a maintainer must open the
+Version PR from that branch manually, preferably as a draft.
+
 ### Preferred hardening: trusted publishing (OIDC)
 
 Once the packages exist on npm, configure **trusted publishing** for each
@@ -107,7 +115,9 @@ first publish to seed the package; see the manual bootstrap below.)
 runs on every PR with no credentials and:
 
 - `npx changeset status` — prints the pending release plan (the release-notes
-  source) and fails on a malformed changeset.
+  source) and fails on a malformed changeset. On the reserved generated
+  `changeset-release/main` branch, where changesets are intentionally consumed,
+  the gate instead asserts that no pending changeset files remain.
 - `node scripts/verify-publish.mjs` — dry-run `npm publish` for **all five**
   packages and asserts each would publish under its `@kerkit/*` name with
   **public** access (`npm run verify-publish` locally).
