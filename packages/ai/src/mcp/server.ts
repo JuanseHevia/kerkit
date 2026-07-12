@@ -55,8 +55,8 @@ async function sweepStructuredContent(
   session: RedactionSession,
 ): Promise<Record<string, unknown> | undefined> {
   if (!value) return undefined;
-  const swept = await session.sweepAsync(JSON.stringify(value));
   try {
+    const swept = await session.sweepAsync(JSON.stringify(value));
     return JSON.parse(swept) as Record<string, unknown>;
   } catch {
     return { redacted: true };

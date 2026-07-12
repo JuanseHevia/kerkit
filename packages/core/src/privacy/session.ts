@@ -47,6 +47,7 @@ const CONTACT_FIELDS: Record<string, readonly string[]> = {
 const MIN_SWEEP_LEN = 2;
 
 const TOKEN_SHAPE = /«[^»]*»/g;
+const NUMBERED_TOKEN = /^«(.+)_(\d+)»$/;
 
 export interface RedactionFinding {
   /** A placeholder token that was allocated, and where it came from. */
@@ -106,8 +107,23 @@ export class RedactionSession {
     if (options.seedTokens) {
       for (const [token, value] of options.seedTokens) {
         if (value.length === 0) continue;
+        const tokenValue = this.tokenToValueMap.get(token);
+        if (tokenValue !== undefined && tokenValue !== value) {
+          throw new Error('Conflicting seeded redaction token');
+        }
+        const valueToken = this.valueToToken.get(value);
+        if (valueToken !== undefined && valueToken !== token) {
+          throw new Error('Conflicting seeded redaction value');
+        }
         this.tokenToValueMap.set(token, value);
         this.valueToToken.set(value, token);
+        const numbered = NUMBERED_TOKEN.exec(token);
+        if (numbered) {
+          const [, base, rawCounter] = numbered;
+          const counter = Number(rawCounter);
+          if (!Number.isSafeInteger(counter)) throw new Error('Invalid seeded redaction token counter');
+          this.counters.set(base, Math.max(this.counters.get(base) ?? 0, counter));
+        }
       }
     }
   }
@@ -183,13 +199,10 @@ export class RedactionSession {
       }
       this.sweptMatches += result.matches.length;
       return result.text;
-    } catch (err) {
+    } catch {
       this.failClosed += 1;
       // Never emit raw; but never silent either — the developer needs a thread.
-      console.error(
-        '[KRK_SWEEP_THROW] kerkit: redaction sweep failed, output dropped to placeholder',
-        err,
-      );
+      console.error('[KRK_SWEEP_THROW] kerkit: redaction sweep failed, output dropped to placeholder');
       return SWEEP_PLACEHOLDER;
     }
   }
@@ -211,19 +224,16 @@ export class RedactionSession {
       const resolved = resolvePiiSpans(detectorSpans);
       this.sweptMatches += base.matches.length + resolved.length;
       return replacePiiSpans(base.text, resolved, SWEEP_PLACEHOLDER);
-    } catch (err) {
+    } catch {
       this.failClosed += 1;
-      console.error(
-        '[KRK_SWEEP_THROW] kerkit: redaction sweep failed, output dropped to placeholder',
-        err,
-      );
+      console.error('[KRK_SWEEP_THROW] kerkit: redaction sweep failed, output dropped to placeholder');
       return SWEEP_PLACEHOLDER;
     }
   }
 
   /** token → original value, for app-side UI rehydration. */
   tokenToValue(): ReadonlyMap<string, string> {
-    return this.tokenToValueMap;
+    return new Map(this.tokenToValueMap);
   }
 
   /** Inspect what the session did — the sink's equivalent of `assemble().explain()`. */

@@ -86,8 +86,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      # Assert that no tarball ships data outside the synthetic persona:
-      # any DNI-shaped string in packed output must be the fixture one.
+      # Assert that no tarball ships data outside the reviewed synthetic set:
+      # the canonical fixture plus the versioned es-AR adversarial corpus.
       - name: Audit packed tarballs for non-synthetic identifiers
         run: |
           set -euo pipefail
@@ -96,7 +96,7 @@ jobs:
             if node -e "process.exit(require('./$pkg/package.json').private ? 1 : 0)"; then
               tarball=$(cd "$pkg" && npm pack --silent)
               mkdir -p /tmp/pack-audit && tar -xzf "$pkg/$tarball" -C /tmp/pack-audit
-              if grep -rEoh '\b[0-9]{1,2}\.[0-9]{3}\.[0-9]{3}\b' /tmp/pack-audit | grep -v '12\.345\.678'; then
+              if grep -rEoh '\b[0-9]{1,2}\.[0-9]{3}\.[0-9]{3}\b' /tmp/pack-audit | grep -vE '^(12\.345\.678|1\.234\.567)$'; then
                 echo "::error::Non-synthetic DNI-shaped identifier found in $tarball"
                 exit 1
               fi

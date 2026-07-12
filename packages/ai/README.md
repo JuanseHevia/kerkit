@@ -48,7 +48,7 @@ const { message, redaction } = await chat.respond({
   message: '¿Cómo viene el trámite de la medicación?',
 });
 message; // model answer (see the leak-check caveat below)
-redaction?.tokensAllocated; // observability: what the sink tokenized this turn
+redaction.tokensAllocated; // observability: what the sink tokenized this turn
 ```
 
 That single `respond()` call covers **patient, repositories, sources, tools, provider, context assembly, and one response** — with the session already wired through all of them. Pass `history` to continue a conversation; read `chat.session.tokenToValue()` to rehydrate tokens back into real values in your UI. Call `assembleContext()` separately only when you want to inspect its transparency report before responding.
@@ -127,7 +127,7 @@ const provider = new OpenAIResponsesAdapter(new OpenAI(), 'gpt-5-mini');
 const result = await runChatLoop({
   provider,
   pack: argentina,
-  instructions,
+  instructions: `${instructions}\n\n<context_window>\n${ctx.contextText}\n</context_window>`,
   messages: [{ role: 'user', content: '¿Cómo viene el trámite de la medicación?' }],
   tools: toToolSpecs(allTools),
   executeTool,

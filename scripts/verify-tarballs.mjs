@@ -173,7 +173,7 @@ import {
 } from '@kerkit/core';
 import argentina, { ARGENTINA_PII_CORPUS_VERSION, argentinaPiiCorpusV1 } from '@kerkit/pack-argentina';
 import { ContextAssembler, buildSystemPrompt, runChatLoop, createRedactedChat } from '@kerkit/ai';
-import { zodObjectToJsonSchema, textResult } from '@kerkit/ai/mcp';
+import { zodObjectToJsonSchema } from '@kerkit/ai/mcp';
 import { OpenAIResponsesAdapter } from '@kerkit/ai/openai';
 import { createFixtureRepositories } from '@kerkit/ai/demo';
 import { createPrivacyRouter, createKerkitSchema, createEscalationJob } from '@kerkit/server';
@@ -194,7 +194,6 @@ const checks: Array<[string, boolean]> = [
   ['@kerkit/ai runChatLoop', typeof runChatLoop === 'function'],
   ['@kerkit/ai createRedactedChat', typeof createRedactedChat === 'function'],
   ['@kerkit/ai/mcp zodObjectToJsonSchema', typeof zodObjectToJsonSchema === 'function'],
-  ['@kerkit/ai/mcp textResult', typeof textResult === 'function'],
   ['@kerkit/ai/openai OpenAIResponsesAdapter', typeof OpenAIResponsesAdapter === 'function'],
   ['@kerkit/ai/demo createFixtureRepositories', typeof createFixtureRepositories === 'function'],
   ['@kerkit/server createPrivacyRouter', typeof createPrivacyRouter === 'function'],

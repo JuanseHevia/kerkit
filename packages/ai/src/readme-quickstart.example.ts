@@ -55,7 +55,7 @@ export async function readmeQuickstart(): Promise<string> {
   // Optional inspection of the redacted caretaker context window. respond()
   // assembles a fresh context window itself before calling the provider.
   const ctx = await chat.assembleContext();
-  ctx.explain(); // exactly what the model will see — show it to the user
+  ctx.explain(); // what the application context includes — show it to the user
 
   // One assistant turn. Free-text names in tool output are swept at the sink.
   const { message, redaction } = await chat.respond({
@@ -63,7 +63,7 @@ export async function readmeQuickstart(): Promise<string> {
   });
 
   // Observability: what the sink tokenized this turn.
-  redaction?.tokensAllocated;
+  redaction.tokensAllocated;
 
   return message;
 }

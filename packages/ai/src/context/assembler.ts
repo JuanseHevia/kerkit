@@ -15,7 +15,7 @@ export interface SectionReport {
 }
 
 export interface AssembledContext {
-  /** The redacted, swept context block — the ONLY thing that goes to the model. */
+  /** The redacted, swept application-context block sent alongside system instructions. */
   contextText: string;
   /** placeholder token → original value, for app-side rehydration in UI. */
   redactionMap: Map<string, string>;

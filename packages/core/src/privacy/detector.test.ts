@@ -28,6 +28,20 @@ describe('PII normalization and spans', () => {
     expect(replacePiiSpans(source, spans, SWEEP_PLACEHOLDER)).toBe(`x ${SWEEP_PLACEHOLDER} y`);
   });
 
+  it('applies NFKC across combining grapheme sequences', () => {
+    const source = 'Cafe\u0301';
+    const normalized = normalizeForPii(source);
+    expect(normalized.text).toBe('Café');
+    expect(normalized.offsets.at(-1)).toEqual({ start: 3, end: 5 });
+  });
+
+  it('removes intra-identifier digit spacing while retaining the original span', () => {
+    const source = 'CUIL 2 0 - 1 2 3 4 5 6 7 8 - 6';
+    const normalized = normalizeForPii(source);
+    expect(normalized.text).toBe('CUIL 20 - 12345678 - 6');
+    expect(normalized.offsets.at(-1)?.end).toBe(source.length);
+  });
+
   it('resolves overlaps by confidence, then longest span', () => {
     const spans = resolvePiiSpans([
       { start: 0, end: 12, type: 'unknown', confidence: 'heuristic' },

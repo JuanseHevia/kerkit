@@ -4,7 +4,7 @@ import { identifierPatterns, isValidCuilCuit } from './identifiers.js';
 import { ARGENTINA_PII_CORPUS_VERSION, argentinaPiiCorpusV1 } from './pii-corpus.js';
 
 function masked(value: string): string {
-  return value.replace(/[A-Za-zÁÉÍÓÚÑáéíóúñ0-9]/g, '*').slice(0, 48);
+  return value.replace(/[\p{L}\p{N}]/gu, '*').slice(0, 48);
 }
 
 describe(`Argentina PII corpus ${ARGENTINA_PII_CORPUS_VERSION}`, () => {

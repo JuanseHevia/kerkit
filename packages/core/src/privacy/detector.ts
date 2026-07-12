@@ -54,14 +54,13 @@ const INVISIBLE_OR_CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u00
 export function normalizeForPii(text: string): NormalizedText {
   let normalized = '';
   const offsets: NormalizedText['offsets'] = [];
-  let sourceIndex = 0;
   let pendingSpace: { start: number; end: number } | undefined;
+  const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text);
 
-  for (const codePoint of text) {
-    const start = sourceIndex;
-    sourceIndex += codePoint.length;
-    const end = sourceIndex;
-    const piece = codePoint.normalize('NFKC');
+  for (const { segment, index } of graphemes) {
+    const start = index;
+    const end = index + segment.length;
+    const piece = segment.normalize('NFKC');
 
     for (const char of piece) {
       if (INVISIBLE_OR_CONTROL.test(char)) continue;
@@ -81,7 +80,21 @@ export function normalizeForPii(text: string): NormalizedText {
     }
   }
 
-  return { text: normalized, offsets };
+  // Remove whitespace inserted inside a run of digits (common OCR/copy-paste
+  // obfuscation: `1 2 3 4 5 6 7 8`). The neighboring digit offsets still
+  // bound the exact original span, including the removed whitespace.
+  let compacted = '';
+  const compactedOffsets: NormalizedText['offsets'] = [];
+  for (let i = 0; i < normalized.length; i += 1) {
+    const char = normalized[i];
+    if (char === ' ' && /\d/u.test(normalized[i - 1] ?? '') && /\d/u.test(normalized[i + 1] ?? '')) {
+      continue;
+    }
+    compacted += char;
+    compactedOffsets.push(offsets[i]);
+  }
+
+  return { text: compacted, offsets: compactedOffsets };
 }
 
 function globalPattern(pattern: RegExp): RegExp {
