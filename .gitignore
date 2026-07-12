@@ -8,3 +8,5 @@ dist/
 coverage/
 *.tsbuildinfo
 .playwright-mcp/
+.gstack/
+docs/private/
