@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { LocalePack, RedactionSession } from '@kerkit/core';
 import type { ExternalSources, KerkitRepositories } from '../repositories.js';
+import type { RedactedText } from '../messages.js';
 
 export interface ToolContext {
   userId: string;
@@ -16,10 +17,16 @@ export interface ToolContext {
    * populate this for tool output to be name-redacted — there is no loop sink
    * on that path.
    */
-  session?: RedactionSession;
+  session: RedactionSession;
 }
 
 export interface ToolResult {
+  content: Array<{ type: 'text'; text: RedactedText }>;
+  structuredContent?: Record<string, unknown>;
+  isError?: boolean;
+}
+
+export interface RawToolResult {
   content: Array<{ type: 'text'; text: string }>;
   structuredContent?: Record<string, unknown>;
   isError?: boolean;
@@ -36,10 +43,10 @@ export interface ToolDefinition {
     openWorldHint: boolean;
     idempotentHint?: boolean;
   };
-  handler: (params: Record<string, unknown>, context: ToolContext) => Promise<ToolResult>;
+  handler: (params: Record<string, unknown>, context: ToolContext) => Promise<RawToolResult>;
 }
 
-export function textResult(payload: unknown): ToolResult {
+export function textResult(payload: unknown): RawToolResult {
   return {
     content: [
       {
@@ -50,6 +57,6 @@ export function textResult(payload: unknown): ToolResult {
   };
 }
 
-export function errorResult(message: string): ToolResult {
+export function errorResult(message: string): RawToolResult {
   return { content: [{ type: 'text', text: message }], isError: true };
 }

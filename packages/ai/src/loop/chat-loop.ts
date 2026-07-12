@@ -6,6 +6,8 @@ import type {
   ToolCallRequest,
   ToolCallResult,
   ToolSpec,
+  RedactedText,
+  SafeChatMessage,
 } from '../messages.js';
 
 export interface ExecutedToolCall {
@@ -21,11 +23,11 @@ export interface ChatLoopResult {
   rounds: number;
   /**
    * What the redaction session did at the sink — tokens allocated, sweep
-   * matches, fail-closed events. Present only when a `session` was passed.
+   * matches, and fail-closed events.
    * NOTE: the returned `message` is model-emitted and is NOT sink-swept; keep
    * your own output leak-check.
    */
-  redaction?: RedactionExplain;
+  redaction: RedactionExplain;
 }
 
 export interface ChatLoopOptions {
@@ -41,29 +43,17 @@ export interface ChatLoopOptions {
   /** Observe each executed call (logging, telemetry, write_note tracking…). */
   onToolCall?: (call: ExecutedToolCall) => void;
   /**
-   * Shared request-scoped session. When passed, every application-originated
+   * Shared request-scoped session. Every application-originated
    * string (instructions, message history, tool output, tool errors) is swept
    * at the provider boundary. Pass the SAME instance used for context assembly
-   * and the patient block — `createRedactedChat` wires all three. Omit it and
-   * free-text names are NOT redacted (a one-time warning fires if a patient
-   * context is detected).
+   * and the patient block. `createRedactedChat` wires all three.
    */
-  session?: RedactionSession;
+  session: RedactionSession;
 }
 
-let warnedMissingSession = false;
-
-/** One-time nudge: patient context present (placeholder tokens) but no session. */
-function warnIfUnprotected(instructions: string, session?: RedactionSession): void {
-  if (session || warnedMissingSession) return;
-  if (/«[^»]+»/.test(instructions)) {
-    warnedMissingSession = true;
-    console.warn(
-      '[KRK_NO_SESSION] kerkit: runChatLoop received a patient context but no RedactionSession — ' +
-        'free-text names in tool output and messages will NOT be redacted. ' +
-        'Use createRedactedChat or pass { session }.',
-    );
-  }
+/** The brand is intentionally minted only inside the provider-bound sink. */
+function safe(text: string): RedactedText {
+  return text as RedactedText;
 }
 
 /**
@@ -77,14 +67,12 @@ export async function runChatLoop(options: ChatLoopOptions): Promise<ChatLoopRes
   const executed: ExecutedToolCall[] = [];
   const session = options.session;
 
-  warnIfUnprotected(options.instructions, session);
-
   // Instructions and message history are constant across rounds — sweep once.
   // Never mutate caller-owned arrays: build fresh copies.
-  const instructions = session ? session.sweep(options.instructions) : options.instructions;
-  const input: ChatMessage[] = session
-    ? options.messages.map((m) => ({ ...m, content: session.sweep(m.content) }))
-    : options.messages;
+  const instructions = safe(await session.sweepAsync(options.instructions));
+  const input: SafeChatMessage[] = await Promise.all(
+    options.messages.map(async (m) => ({ ...m, content: safe(await session.sweepAsync(m.content)) })),
+  );
 
   let state: unknown;
   let toolResults: ToolCallResult[] | undefined;
@@ -104,7 +92,7 @@ export async function runChatLoop(options: ChatLoopOptions): Promise<ChatLoopRes
         message: turn.text ?? getCopy(options.pack, 'assistant.fallback.empty'),
         toolCalls: executed.length > 0 ? executed : undefined,
         rounds: round,
-        redaction: session?.explain(),
+        redaction: session.explain(),
       };
     }
 
@@ -128,7 +116,7 @@ export async function runChatLoop(options: ChatLoopOptions): Promise<ChatLoopRes
       toolResults.push({
         id: call.id,
         name: call.name,
-        output: session ? session.sweep(rawOutput) : rawOutput,
+        output: safe(await session.sweepAsync(rawOutput)),
       });
     }
 
@@ -139,6 +127,6 @@ export async function runChatLoop(options: ChatLoopOptions): Promise<ChatLoopRes
     message: getCopy(options.pack, 'assistant.fallback.toolRoundsExhausted'),
     toolCalls: executed.length > 0 ? executed : undefined,
     rounds: maxRounds,
-    redaction: session?.explain(),
+    redaction: session.explain(),
   };
 }

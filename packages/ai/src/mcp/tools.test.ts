@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FIXTURE_IDS } from '@kerkit/core';
+import { FIXTURE_IDS, RedactionSession } from '@kerkit/core';
 import { argentina } from '@kerkit/pack-argentina';
 import { allTools, readPrescriptionsTool, writeNoteTool } from './tools.js';
 import { createToolExecutor, toToolSpecs } from './executor.js';
@@ -7,7 +7,12 @@ import { createFixtureRepositories } from '../test-helpers.js';
 import type { ToolContext } from './types.js';
 
 function makeContext(): ToolContext & { repos: ReturnType<typeof createFixtureRepositories> } {
-  return { userId: FIXTURE_IDS.user, repos: createFixtureRepositories(), pack: argentina };
+  return {
+    userId: FIXTURE_IDS.user,
+    repos: createFixtureRepositories(),
+    pack: argentina,
+    session: new RedactionSession({ patterns: argentina.identifierPatterns }),
+  };
 }
 
 describe('toToolSpecs', () => {

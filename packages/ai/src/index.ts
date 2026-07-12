@@ -7,6 +7,8 @@ export type {
   ProviderTurn,
   GenerateOptions,
   ProviderAdapter,
+  RedactedText,
+  SafeChatMessage,
 } from './messages.js';
 
 export type {

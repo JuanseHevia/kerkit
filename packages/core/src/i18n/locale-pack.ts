@@ -1,5 +1,6 @@
 import type { SignalType } from '../entities/signal.js';
 import type { CopyKey } from './copy-keys.js';
+import type { PiiPattern } from '../privacy/detector.js';
 
 /** An insurance plan model (an obra social in Argentina). Reference data, not config. */
 export interface InsurerModel {
@@ -54,8 +55,8 @@ export interface LocalePack {
   strings: Record<CopyKey, string>;
   insurers?: InsurerModel[];
   signalPatterns?: SignalPattern[];
-  /** Identifier regexes (DNI, CUIL…) fed to the privacy sweep pass. */
-  identifierPatterns?: RegExp[];
+  /** Typed identifier patterns fed to the privacy sweep pass. */
+  identifierPatterns?: PiiPattern[];
   rules: LocaleRules;
   prompts?: {
     /** Tone description injected into the system prompt (voseo, warm, precise…). */

@@ -2,6 +2,12 @@
 
 # Anonymization hardening + privacy test framework
 
+> **Implementation status (0.2.0):** M1 and M2 are implemented. A0/A1/A3/A7
+> and the Layer-0 provider canaries landed first; the final hardening change makes
+> the boundary structural (A2) and adds A4-A6 plus the Layer-1 es-AR corpus and
+> property gates. M3/M4 remain deferred. Free-text recall is measured against the
+> versioned corpus, never guaranteed for arbitrary language.
+
 **One line:** Enforce redaction at a single provider-boundary chokepoint, prove the boundary with canary tests, and measure free-text recall against a versioned es-AR corpus — replacing the current per-path, fixture-tested approach.
 
 > **v2 note:** Review converged on a stronger architecture than v1. The headline change: stop bolting redaction onto each tool/path; enforce it **once, at the `provider.generate()` sink**, via a request-scoped `RedactionSession` and a branded `SafeProviderInput` type. This subsumes the old A1/A2 and closes three ingress holes the v1 "two holes" framing missed.
@@ -32,17 +38,17 @@
 
 Everything that reaches `provider.generate()` (`instructions`, `input`, `toolResults`, and tool error strings — [messages.ts](../packages/ai/src/messages.ts), [chat-loop.ts](../packages/ai/src/loop/chat-loop.ts)):
 
-| # | Ingress | Current defense | Gap |
+| # | Ingress | 0.2.0 defense | Residual risk |
 |---|---|---|---|
-| 1 | Structured entity fields → context | structural redaction → token | ✅ but token scheme has a collision bug (below) |
-| 2 | Identifier in free text (note content) | regex sweep | ⚠️ 5 patterns, no normalization |
-| 3 | **External tools** (email/calendar/docs) | **none** | ❌ `textResult(raw)` |
-| 4 | **Inbound user messages** | **none** | ❌ `messages` sent raw |
-| 5 | **Tool exceptions** | **none** | ❌ `{ error: err.message }` → model ([chat-loop.ts#L75](../packages/ai/src/loop/chat-loop.ts#L75)) |
-| 6 | **`write_note` echo** | **none** | ❌ returns unswept `note.content` ([tools.ts#L174](../packages/ai/src/mcp/tools.ts#L174)) |
-| 7 | **`instructions` / system prompt** | builder helper only | ⚠️ accepts unrestricted strings |
-| 8 | Misclassified `logistics` PII | passes through by design | ❌ `prescriberName`, `personName`, `sender`, institution `email`/`phone`/`address` are PII flowing today |
-| 9 | Mosaic re-identification | none | ⚠️ unmeasured |
+| 1 | Structured entity fields → context | collision-safe, value-deduplicated session tokens | token-map handling remains application-side |
+| 2 | Identifier in free text (note content) | normalized, typed detector sweep | recall outside `es-ar-v1` is not guaranteed |
+| 3 | **External tools** (email/calendar/docs) | session sweep at the provider sink | detector coverage varies by locale/policy |
+| 4 | **Inbound user messages** | session sweep at the provider sink | novel names require a known value or consumer detector |
+| 5 | **Tool exceptions** | fail-closed session sweep | generic placeholder can reduce diagnostics |
+| 6 | **`write_note` echo** | session sweep at the provider sink | same measured free-text limits as #2 |
+| 7 | **`instructions` / system prompt** | branded provider input minted by the session | unsafe adapters are rejected at compile time |
+| 8 | Misclassified `logistics` PII | contact fields reclassified; optional contact pseudonymization | operational names retain mosaic risk by policy |
+| 9 | Mosaic re-identification | documented policy residual | not eliminated or quantified |
 
 "Robust anonymization" = a single enforced sink that covers 1-7, a classification fix for 8, and a measured posture for 9.
 
@@ -56,38 +62,38 @@ Everything that reaches `provider.generate()` (`instructions`, `input`, `toolRes
 
 ## Deliverable A — Anonymization hardening (centralized at the sink)
 
-### A0. `RedactionSession` — the request-scoped chokepoint (NEW, foundational — was the missing piece in v1)
+### A0. `RedactionSession` — the request-scoped chokepoint (COMPLETE)
 A per-request object threaded through context assembly, chat ingress, and tool execution. Owns: collision-safe token allocation, the normalized known-value map, accumulated findings, and the active policy. **Fixes the v1 bug that A1/A2 had no access to the live token map.**
 
-### A1. Enforce redaction at the provider boundary (replaces v1 per-tool A1 + per-loop A2)
+### A1. Enforce redaction at the provider boundary (COMPLETE)
 A `RedactedProviderClient` (or a redaction step inside `runChatLoop` immediately before `generate()`) sweeps **all application-originated inputs**: `instructions`, user/assistant history, `toolResults`, and tool error strings — using the session. External-tool output (#3), inbound text (#4), exceptions (#5), `write_note` echo (#6), and instructions (#7) are all covered at one point. *Model-emitted tool-call arguments are treated as an authorization/validation concern, not retroactive PII protection.*
 
-### A2. Branded `SafeProviderInput` / `RedactedText` types (makes it structural, not a convention)
-`ToolResult` and provider inputs become discriminated/branded (`raw-external`, `classified-rows`, `safe-text`). Raw constructors (`textResult`) become internal; only the executor/session can mint provider-bound text. "Forgot to redact" becomes a **compile error**, mirroring how `Classification<T>` already works. A new tool that returns raw text cannot type-check.
+### A2. Branded `SafeProviderInput` / `RedactedText` types (COMPLETE)
+`ToolResult` and provider inputs use branded safe text. Raw handler results and their constructors stay internal; only the executor/session can mint provider-bound text. "Forgot to redact" becomes a **compile error**, mirroring how `Classification<T>` already works: a raw handler result cannot be passed where a provider-safe `ToolResult` is required.
 
-### A3. Collision-safe token scheme (fixes a critical bug)
+### A3. Collision-safe token scheme (COMPLETE)
 `placeholderFor()` derives `«NAME»` from the field name, so two people both become `«NAME»` and the map keeps only the last value ([redaction.ts#L19](../packages/core/src/privacy/redaction.ts#L19), overwrite at [assembler.ts#L80](../packages/ai/src/context/assembler.ts#L80)). Fix: per-request unique tokens (`«PERSON_NAME_1»`), value→token dedup within a request, reject token/value conflicts, and **escape token-shaped substrings in user input** so a user typing `«NAME»` can't poison the map.
 
-### A4. Normalization engine + span core (prerequisite for the corpus, was mis-scoped as corpus work)
+### A4. Normalization engine + span core (COMPLETE)
 A normalization pre-pass (NFKC, strip zero-width/control chars, collapse intra-token whitespace) with an **offset map back to original text**, then a **span-based detector core**: detectors return `{start, end, type, confidence}`; overlaps resolved deterministically (higher confidence, then longest span); replacements applied right-to-left. This is also the `PiiDetector` interface (A6) and what makes per-type recall measurable. `sweepText` becomes the default span-producing impl. **Do this before the harness.**
 
-### A5. Widen + tier the patterns
+### A5. Widen + tier the patterns (COMPLETE)
 Add AR phones, emails, undotted/unlabeled DNI, labeled addresses. Tier as `high-confidence` (gated, always redact) vs `heuristic` (redact + flag). CUIL/CUIT with a valid mod-11 check digit = high-confidence; invalid-but-shaped = heuristic. Tier is an explicit field on each pattern with a safe default (`heuristic`).
 
-### A6. `PiiDetector` interface (the extensibility seam)
+### A6. `PiiDetector` interface (COMPLETE)
 `interface PiiDetector { detect(text: string): Span[] | Promise<Span[]> }` (async-capable for ML/remote). `Span` is unified with the corpus record shape. Default impl = the regex/normalization sweep. Documented as a consumer extension point ("bring your own detector").
 
-### A7. Re-classify leaking `logistics` fields (#8) + document residual contact risk
+### A7. Re-classify leaking `logistics` fields (#8) + document residual contact risk (COMPLETE)
 Move contact identifiers that are genuinely PII (`sender` emails, institution `email`/`phone`, person `phone`) to redaction; keep operationally-needed names as `logistics` but document the residual mosaic risk and offer an optional `pseudonymizeContacts` mode (default off).
 
 ---
 
 ## Deliverable B — Privacy test framework (the proof)
 
-### Layer 0 — Canary boundary tests (NEW, the real "boundary completeness" — per-commit)
+### Layer 0 — Canary boundary tests (COMPLETE — per-commit)
 Replaces v1's brittle "enumerate `allTools` and inspect handlers." **Test the sink, not the implementation:** feed known canary PII through every registered ingress (each tool, each context source, inbound message, a thrown tool error, instructions) into a **recording mock provider**, and assert the provider never received the canary value. A new ingress that bypasses the session fails here. This is the strongest, most durable layer.
 
-### Layer 1 — Deterministic gate (vitest, per-commit) — THE GATE
+### Layer 1 — Deterministic gate (COMPLETE — per-commit)
 - **`fast-check` structural invariant** (the PROVEN claim): ∀ entity × classification, no `direct-identifier` value appears in `redactEntityForLlm` output. Plus token-collision and token-shaped-input properties.
 - **Versioned es-AR corpus**, *hand-curated adversarial first* (~20-30 cases: dotted/undotted/labeled DNI, CUIL, phone, email, address, names, credential numbers, and obfuscated forms — spaced digits, zero-width, OCR noise). A seeded synthetic generator with valid check digits + an obfuscation grammar is a **later** add (it only emits shapes we already imagined — see taste decision T1).
 - **Recall harness** over the span core: per-type recall + false-positive rate. **Hard gate only on the narrow invariant** (no known direct-identifier value survives) + 100% recall on `high-confidence` types. Per-type/heuristic recall is a **reported metric**, not a build-breaker, until patterns stabilize — avoids a self-tightening CI tarpit.
@@ -117,8 +123,8 @@ Sources: promptfoo.dev/docs (pii plugin, CI exit-code gate), github.com/microsof
 
 ## Phasing (revised — leak fix is severable and urgent)
 
-- **M1 — Close the sink (ship this week, standalone patch + CHANGELOG security note):** A0 session + A1 boundary enforcement + A2 branded types + A3 token fix + A7 reclassification + **Layer 0 canary tests**. This alone closes ingress 1-8.
-- **M2 — The measured gate:** A4 normalization/span core + A5 tiers + A6 detector interface + Layer 1 corpus/harness/`fast-check` + actionable failures.
+- **M1 — Close the sink (COMPLETE):** A0 session + A1 boundary enforcement + A2 branded types + A3 token fix + A7 reclassification + **Layer 0 canary tests**. This closes kerkit-owned ingress 1-8.
+- **M2 — The measured gate (COMPLETE):** A4 normalization/span core + A5 tiers + A6 detector interface + Layer 1 corpus/harness/`fast-check` + masked diagnostics.
 - **M3 — Consumer kit (DEFERRED per D2 — triggered, not scheduled):** ships as internal subpath `@kerkit/core/privacy-testing` only (corpus-as-pluggable-input + `assertNoLeak`/`assertProviderBoundarySafe`). A separate published `@kerkit/privacy-testing` package waits for a real external consumer.
 - **M4 — Scouts (DEFERRED per D2 — triggered, not scheduled):** Layer 2 oracle is built **only if** M2's corpus review surfaces an ML-closable escape; Layer 3 Promptfoo waits for a reference app. Neither is on the calendar.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FIXTURE_IDS, fixturePatient, SWEEP_PLACEHOLDER } from '@kerkit/core';
+import { FIXTURE_IDS, fixturePatient, RedactionSession, SWEEP_PLACEHOLDER } from '@kerkit/core';
 import { argentina } from '@kerkit/pack-argentina';
 import { ContextAssembler } from './assembler.js';
 import { defaultSources } from './sources.js';
@@ -17,9 +17,13 @@ function makeAssembler(repos = createFixtureRepositories()) {
   return assembler;
 }
 
+function session() {
+  return new RedactionSession({ patterns: argentina.identifierPatterns });
+}
+
 describe('ContextAssembler', () => {
   it('includes the caretaker logistics the assistant needs', async () => {
-    const ctx = await makeAssembler().assemble(FIXTURE_IDS.user);
+    const ctx = await makeAssembler().assemble(FIXTURE_IDS.user, { session: session() });
     expect(ctx.contextText).toContain('Quimioterapia — ciclo 3');
     expect(ctx.contextText).toContain('Autorización de Medicamento Demo 50mg');
     expect(ctx.contextText).toContain(argentina.strings['context.section.appointments']);
@@ -27,21 +31,23 @@ describe('ContextAssembler', () => {
   });
 
   it('never leaks the DNI — even when it hides inside note free text', async () => {
-    const ctx = await makeAssembler().assemble(FIXTURE_IDS.user);
+    const ctx = await makeAssembler().assemble(FIXTURE_IDS.user, { session: session() });
     expect(ctx.contextText).not.toContain('12.345.678');
     expect(ctx.contextText).toContain(SWEEP_PLACEHOLDER);
   });
 
   it('sweeps the patient name from note text when known tokens are passed', async () => {
-    const { tokens } = buildPatientContextBlock(fixturePatient);
-    const ctx = await makeAssembler().assemble(FIXTURE_IDS.user, { knownTokens: tokens });
+    const shared = session();
+    const { tokens } = buildPatientContextBlock(fixturePatient, { session: shared });
+    const ctx = await makeAssembler().assemble(FIXTURE_IDS.user, { session: shared });
     expect(ctx.contextText).not.toContain('Marta Pérez');
-    expect(ctx.contextText).toContain('«NAME»');
-    expect(ctx.redactionMap.get('«NAME»')).toBe('Marta Pérez');
+    const token = [...tokens.keys()].find((value) => value.includes('PATIENT_NAME'))!;
+    expect(ctx.contextText).toContain(token);
+    expect(ctx.redactionMap.get(token)).toBe('Marta Pérez');
   });
 
   it('explain() reports sections, budgets, and sweep activity', async () => {
-    const ctx = await makeAssembler().assemble(FIXTURE_IDS.user);
+    const ctx = await makeAssembler().assemble(FIXTURE_IDS.user, { session: session() });
     const report = ctx.explain();
     expect(report.sections.map((s) => s.key)).toEqual([
       'appointments',
@@ -69,7 +75,7 @@ describe('ContextAssembler', () => {
       classification: (await import('@kerkit/core')).appointmentClassification,
       formatItem: (a) => String(a.title),
     });
-    const ctx = await assembler.assemble(FIXTURE_IDS.user);
+    const ctx = await assembler.assemble(FIXTURE_IDS.user, { session: session() });
     const section = ctx.explain().sections[0];
     expect(section.fetched).toBe(2);
     expect(section.included).toBe(1);

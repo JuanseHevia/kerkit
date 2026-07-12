@@ -37,9 +37,10 @@ const chat = createRedactedChat({
   tools: allTools, // the nine caretaker tools
 });
 
-// The redacted context window, with a transparency report.
+// Inspect the redacted context window and its transparency report. This call is
+// optional; respond() assembles a fresh context window automatically.
 const ctx = await chat.assembleContext();
-ctx.contextText; // the ONLY thing that reaches the model
+ctx.contextText; // the application context portion sent to the model
 ctx.explain(); // what was included / excluded / tokenized — show it to the user
 
 // One assistant turn. Free-text names in tool output are swept at the sink.
@@ -47,10 +48,10 @@ const { message, redaction } = await chat.respond({
   message: '¿Cómo viene el trámite de la medicación?',
 });
 message; // model answer (see the leak-check caveat below)
-redaction?.tokensAllocated; // observability: what the sink tokenized this turn
+redaction.tokensAllocated; // observability: what the sink tokenized this turn
 ```
 
-That single call covers **patient, repositories, sources, tools, provider, context assembly, and one response** — with the session already wired through all of them. Pass `history` to `respond` to continue a conversation; read `chat.session.tokenToValue()` to rehydrate tokens back into real values in your UI.
+That single `respond()` call covers **patient, repositories, sources, tools, provider, context assembly, and one response** — with the session already wired through all of them. Pass `history` to continue a conversation; read `chat.session.tokenToValue()` to rehydrate tokens back into real values in your UI. Call `assembleContext()` separately only when you want to inspect its transparency report before responding.
 
 > This quickstart is a CI compile gate: [`src/readme-quickstart.example.ts`](./src/readme-quickstart.example.ts) type-checks the same call under `npm run lint`, so the snippet can't silently drift from the API.
 
@@ -60,7 +61,7 @@ The session enforces two layers with **different guarantees**. Knowing which is 
 
 1. **Structural redaction — proven, deterministic.** Every row and entity is classified field-by-field before it leaves its source. `direct-identifier` fields (name, DNI, credential number) become stable tokens; sensitive health fields are dropped unless you opt in via `allowSensitiveFields`. This covers the fields the classification knows about, every time.
 
-2. **Free-text recall — best-effort.** Identifiers hiding inside prose (a name typed into a note, an address in an email body) are caught two ways: the locale's regex patterns match *shaped* identifiers (DNI/CUIL), and a **known-value sweep** replaces values the session has *already tokenized somewhere else* — which is why the patient's name, tokenized first by the patient block, is then swept out of a note that mentions it.
+2. **Free-text recall — measured, not proven.** Identifiers hiding inside prose are normalized (NFKC, control/zero-width removal), detected as typed source spans, and replaced after deterministic overlap resolution. The Argentina pack covers tiered DNI, CUIL/CUIT, phone, email, credential, and labeled-address patterns. A **known-value sweep** also replaces values the session has already tokenized elsewhere, which is why the patient's name is swept from a later note.
 
 **Row-level structural redaction does not, on its own, catch an arbitrary name in free text.** A name is not regex-shaped, so it is only swept if the shared session already holds it as a known value. That is the whole reason one session must span the patient block, assembly, tools, and the sink — and it is also the limit: a brand-new name that appears **only** in free text and was never tokenized elsewhere can still reach the model. Keep your own output leak-check. `respond()` (and `runChatLoop`) return a `redaction` report for observability, but the model-emitted `message` is **not** sink-swept — it is generated text, not application data.
 
@@ -70,7 +71,7 @@ Nine tools: `read_appointments`, `read_prescriptions`, `read_authorizations`, `r
 
 Wired through `createRedactedChat` (or given a `session` in their `ToolContext`), tool output passes the structural classification pass **and** the shared session's sweep before leaving the tool — the same discipline as assembled context.
 
-Run them in-process (`createToolExecutor`) or on an MCP server (`registerKerkitTools(server, allTools, { userMode: { kind: 'injected' } })` — in injected mode a missing `_userId` is a hard error; there is no fallback user).
+Run them in-process (`createToolExecutor`) or on an MCP server. `registerKerkitTools` requires `createSession({ userId, toolName })`; use `onRedaction` for the trusted app-side token/rehydration sidecar. Original values are never placed in MCP content or `structuredContent`. In injected-user mode a missing `_userId` is a hard error; there is no fallback user.
 
 ## Prompts
 
@@ -78,7 +79,7 @@ Run them in-process (`createToolExecutor`) or on an MCP server (`registerKerkitT
 
 ## Advanced: composing the low-level API
 
-`createRedactedChat` is the safe default. Reach for the primitives below only when you need to compose the pieces yourself (a custom loop, a non-default context window, your own turn orchestration). **When you do, you own threading the session** — the *same* `RedactionSession` instance must reach all four call sites, or the sites you skip stop redacting free-text names.
+`createRedactedChat` is the safe default. Reach for the primitives below only when you need to compose the pieces yourself. Low-level provider and tool APIs require the same `RedactionSession`, and provider input is branded `RedactedText`; omitting the boundary is a compile error rather than a warning.
 
 ```ts
 import {
@@ -126,14 +127,14 @@ const provider = new OpenAIResponsesAdapter(new OpenAI(), 'gpt-5-mini');
 const result = await runChatLoop({
   provider,
   pack: argentina,
-  instructions,
+  instructions: `${instructions}\n\n<context_window>\n${ctx.contextText}\n</context_window>`,
   messages: [{ role: 'user', content: '¿Cómo viene el trámite de la medicación?' }],
   tools: toToolSpecs(allTools),
   executeTool,
-  session, // omit this and the sink is off — free-text names LEAK
+  session,
 });
 ```
 
-Omit `session` at any of those four sites and that site stops redacting free-text names — the exact footgun `createRedactedChat` closes. `runChatLoop` fires a one-time `KRK_NO_SESSION` warning when it sees a patient context (placeholder tokens) reach the sink without a session, so the regression is loud rather than silent.
+The same session is mandatory at all four sites. Compile-only negative tests ensure raw provider strings, sessionless loops, and sessionless tool contexts cannot type-check.
 
 Loop semantics: max 5 rounds by default; tool errors are reported to the model, not thrown; provider state is opaque (`OpenAIResponsesAdapter` ships, other providers are a contribution-sized adapter away — kerkit's message shapes are the only public surface).

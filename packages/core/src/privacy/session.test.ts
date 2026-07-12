@@ -28,6 +28,22 @@ describe('RedactionSession — collision-safe tokens (bug 1)', () => {
     expect(a.redacted.name).toBe('«PERSON_NAME_1»');
     expect(b.redacted.name).toBe('«PERSON_NAME_1»');
   });
+
+  it('advances counters past seeded tokens and rejects conflicting seed maps', () => {
+    const seeded = new RedactionSession({
+      seedTokens: new Map([['«PERSON_NAME_2»', 'Marta Pérez']]),
+    });
+    const next = seeded.redactEntity({ name: 'Carlos Pérez' }, NAME_CLS, { entityKind: 'person' });
+    expect(next.redacted.name).toBe('«PERSON_NAME_3»');
+    expect(() =>
+      new RedactionSession({
+        seedTokens: new Map([
+          ['«PERSON_NAME_1»', 'Marta Pérez'],
+          ['«PERSON_NAME_2»', 'Marta Pérez'],
+        ]),
+      }),
+    ).toThrow('Conflicting seeded redaction value');
+  });
 });
 
 describe('RedactionSession — sweep', () => {

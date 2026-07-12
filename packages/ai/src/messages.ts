@@ -7,6 +7,15 @@ export interface ChatMessage {
   content: string;
 }
 
+declare const redactedTextBrand: unique symbol;
+/** Text that has passed through a request-scoped RedactionSession. */
+export type RedactedText = string & { readonly [redactedTextBrand]: true };
+
+export interface SafeChatMessage {
+  role: ChatMessage['role'];
+  content: RedactedText;
+}
+
 export interface ToolSpec {
   name: string;
   description: string;
@@ -25,7 +34,7 @@ export interface ToolCallResult {
   id: string;
   name: string;
   /** Stringified tool output (JSON or plain text). */
-  output: string;
+  output: RedactedText;
 }
 
 export interface TokenUsage {
@@ -47,9 +56,9 @@ export interface ProviderTurn {
 }
 
 export interface GenerateOptions {
-  instructions: string;
+  instructions: RedactedText;
   /** Conversation so far. Used on the first round of a loop. */
-  input: ChatMessage[];
+  input: SafeChatMessage[];
   /** Continuation state from the previous turn (with toolResults). */
   state?: unknown;
   /** Tool results to feed back alongside `state`. */

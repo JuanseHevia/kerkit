@@ -21,18 +21,22 @@ keywords = ["dni"]
 regexes = [
   # The canonical synthetic persona (see packages/core/src/fixtures).
   '''12\.345\.678''',
+  # Versioned es-AR adversarial corpus (synthetic).
+  '''1\.234\.567''',
   '''DNI:?\s*12345678''',
 ]
 
 [[rules]]
 id = "ar-cuil-cuit"
 description = "Argentine CUIL/CUIT (XX-XXXXXXXX-X)"
-regex = '''\b(20|23|24|27|30|33|34)-?\d{8}-?\d\b'''
+regex = '''\b(?:20|23|24|27|30|33|34)-?\d{8}-?\d\b'''
 
 [[rules.allowlists]]
 regexes = [
-  # Synthetic persona CUIL.
-  '''27-?12345678-?\d''',
+  # Canonical synthetic fixture and versioned es-AR adversarial corpus.
+  '''27-?12345678-?4''',
+  '''20-?12345678-?6''',
+  '''20-?12345678-?3''',
 ]
 
 [allowlist]

@@ -1,4 +1,4 @@
-export { textResult, errorResult, type ToolContext, type ToolResult, type ToolDefinition } from './types.js';
+export type { ToolContext, ToolResult, RawToolResult, ToolDefinition } from './types.js';
 export { redactedRowsResult } from './redact-rows.js';
 export {
   allTools,

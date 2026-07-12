@@ -1,5 +1,14 @@
 import type { Classification } from './classification.js';
 import {
+  RegexPiiDetector,
+  coercePiiPatterns,
+  replacePiiSpans,
+  resolvePiiSpans,
+  type PiiDetector,
+  type PiiPattern,
+  type PiiSpan,
+} from './detector.js';
+import {
   redactEntityForLlm,
   sweepText,
   tokenBaseName,
@@ -38,6 +47,7 @@ const CONTACT_FIELDS: Record<string, readonly string[]> = {
 const MIN_SWEEP_LEN = 2;
 
 const TOKEN_SHAPE = /«[^»]*»/g;
+const NUMBERED_TOKEN = /^«(.+)_(\d+)»$/;
 
 export interface RedactionFinding {
   /** A placeholder token that was allocated, and where it came from. */
@@ -57,7 +67,9 @@ export interface RedactionExplain {
 
 export interface RedactionSessionOptions {
   /** Locale identifier patterns for the free-text sweep pass. */
-  patterns?: readonly RegExp[];
+  patterns?: readonly (PiiPattern | RegExp)[];
+  /** Optional sync or async detectors, evaluated alongside locale patterns. */
+  detectors?: readonly PiiDetector[];
   /** Contact policy; merged over the default (off). */
   policy?: Partial<RedactionPolicy>;
   /**
@@ -79,7 +91,8 @@ export interface RedactionSessionOptions {
  */
 export class RedactionSession {
   readonly policy: RedactionPolicy;
-  private readonly patterns: readonly RegExp[];
+  private readonly patterns: readonly PiiPattern[];
+  private readonly detectors: readonly PiiDetector[];
   private readonly valueToToken = new Map<string, string>();
   private readonly tokenToValueMap = new Map<string, string>();
   private readonly counters = new Map<string, number>();
@@ -88,13 +101,29 @@ export class RedactionSession {
   private failClosed = 0;
 
   constructor(options: RedactionSessionOptions = {}) {
-    this.patterns = options.patterns ?? [];
+    this.patterns = coercePiiPatterns(options.patterns ?? []);
+    this.detectors = options.detectors ?? [];
     this.policy = { ...DEFAULT_REDACTION_POLICY, ...options.policy };
     if (options.seedTokens) {
       for (const [token, value] of options.seedTokens) {
         if (value.length === 0) continue;
+        const tokenValue = this.tokenToValueMap.get(token);
+        if (tokenValue !== undefined && tokenValue !== value) {
+          throw new Error('Conflicting seeded redaction token');
+        }
+        const valueToken = this.valueToToken.get(value);
+        if (valueToken !== undefined && valueToken !== token) {
+          throw new Error('Conflicting seeded redaction value');
+        }
         this.tokenToValueMap.set(token, value);
         this.valueToToken.set(value, token);
+        const numbered = NUMBERED_TOKEN.exec(token);
+        if (numbered) {
+          const [, base, rawCounter] = numbered;
+          const counter = Number(rawCounter);
+          if (!Number.isSafeInteger(counter)) throw new Error('Invalid seeded redaction token counter');
+          this.counters.set(base, Math.max(this.counters.get(base) ?? 0, counter));
+        }
       }
     }
   }
@@ -159,22 +188,52 @@ export class RedactionSession {
           .sort((a, b) => b[1].length - a[1].length),
       );
       const result = sweepText(escaped, this.patterns, known);
+      for (const detector of this.detectors) {
+        const spans = detector.detect(result.text);
+        if (spans instanceof Promise) {
+          throw new Error('Async PiiDetector requires RedactionSession.sweepAsync()');
+        }
+        const resolved = resolvePiiSpans(spans);
+        this.sweptMatches += resolved.length;
+        result.text = replacePiiSpans(result.text, resolved, SWEEP_PLACEHOLDER);
+      }
       this.sweptMatches += result.matches.length;
       return result.text;
-    } catch (err) {
+    } catch {
       this.failClosed += 1;
       // Never emit raw; but never silent either — the developer needs a thread.
-      console.error(
-        '[KRK_SWEEP_THROW] kerkit: redaction sweep failed, output dropped to placeholder',
-        err,
+      console.error('[KRK_SWEEP_THROW] kerkit: redaction sweep failed, output dropped to placeholder');
+      return SWEEP_PLACEHOLDER;
+    }
+  }
+
+  /** Provider-bound sweep supporting both synchronous and asynchronous detectors. */
+  async sweepAsync(text: string): Promise<string> {
+    try {
+      const escaped = this.escapeForeignTokens(text);
+      const known = new Map(
+        [...this.tokenToValueMap.entries()]
+          .filter(([, value]) => value.length >= MIN_SWEEP_LEN)
+          .sort((a, b) => b[1].length - a[1].length),
       );
+      const base = sweepText(escaped, this.patterns, known);
+      const detectorSpans: PiiSpan[] = [];
+      for (const detector of this.detectors) {
+        detectorSpans.push(...(await detector.detect(base.text)));
+      }
+      const resolved = resolvePiiSpans(detectorSpans);
+      this.sweptMatches += base.matches.length + resolved.length;
+      return replacePiiSpans(base.text, resolved, SWEEP_PLACEHOLDER);
+    } catch {
+      this.failClosed += 1;
+      console.error('[KRK_SWEEP_THROW] kerkit: redaction sweep failed, output dropped to placeholder');
       return SWEEP_PLACEHOLDER;
     }
   }
 
   /** token → original value, for app-side UI rehydration. */
   tokenToValue(): ReadonlyMap<string, string> {
-    return this.tokenToValueMap;
+    return new Map(this.tokenToValueMap);
   }
 
   /** Inspect what the session did — the sink's equivalent of `assemble().explain()`. */
@@ -194,7 +253,7 @@ export class RedactionSession {
   debugValue(value: string): { knownValue: boolean; patternMatch: boolean } {
     return {
       knownValue: this.valueToToken.has(value),
-      patternMatch: this.patterns.some((p) => new RegExp(p.source, p.flags).test(value)),
+      patternMatch: this.patterns.some((p) => new RegexPiiDetector([p]).detect(value).length > 0),
     };
   }
 

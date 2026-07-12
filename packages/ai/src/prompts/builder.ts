@@ -1,4 +1,4 @@
-import { getCopy, patientClassification, redactEntityForLlm } from '@kerkit/core';
+import { getCopy, patientClassification } from '@kerkit/core';
 import type { LocalePack, Patient, RedactionSession } from '@kerkit/core';
 
 export interface SystemPromptOptions {
@@ -76,18 +76,14 @@ export function buildPatientContextBlock(
      * text be swept to the same placeholder. Without it, the name token is
      * isolated to this block.
      */
-    session?: RedactionSession;
-  } = {},
+    session: RedactionSession;
+  },
 ): PatientContextResult {
   const record = patient as unknown as Record<string, unknown>;
-  const { redacted, tokens } = opts.session
-    ? opts.session.redactEntity(record, patientClassification, {
-        entityKind: 'patient',
-        allowSensitiveFields: opts.allowSensitiveFields,
-      })
-    : redactEntityForLlm(record, patientClassification, {
-        allowSensitiveFields: opts.allowSensitiveFields,
-      });
+  const { redacted, tokens } = opts.session.redactEntity(record, patientClassification, {
+    entityKind: 'patient',
+    allowSensitiveFields: opts.allowSensitiveFields,
+  });
 
   const lines = [`- Paciente: ${redacted.name}`];
   if (opts.insurerName) lines.push(`- Obra social: ${opts.insurerName}`);
