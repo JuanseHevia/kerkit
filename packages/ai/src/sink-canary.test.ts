@@ -1,12 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
-import { FIXTURE_IDS, fixturePatient } from '@kerkit/core';
+import { describe, expect, it } from 'vitest';
+import { FIXTURE_IDS, fixturePatient, RedactionSession } from '@kerkit/core';
 import { argentina } from '@kerkit/pack-argentina';
 import { createRedactedChat } from './factory.js';
-import { runChatLoop } from './loop/chat-loop.js';
-import { buildPatientContextBlock, buildSystemPrompt } from './prompts/builder.js';
 import { defaultSources } from './context/sources.js';
 import { allTools } from './mcp/tools.js';
-import { createToolExecutor, toToolSpecs } from './mcp/executor.js';
+import { runChatLoop } from './loop/chat-loop.js';
 import { createFixtureRepositories } from './test-helpers.js';
 import type { GenerateOptions, ProviderAdapter, ProviderTurn } from './messages.js';
 
@@ -72,36 +70,57 @@ describe('Layer-0 canary — the provider sink (A1)', () => {
     // (the last respond() call carries the session's explain())
   });
 
-  it('UNSAFE PATH (raw runChatLoop, no session): the name LEAKS — proves the guarantee is opt-in', async () => {
-    const provider = recordingProvider();
-    const repos = createFixtureRepositories();
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    const { block } = buildPatientContextBlock(fixturePatient); // no session
-    const systemPrompt = buildSystemPrompt({
-      pack: argentina,
-      assistantName: 'Demo',
-      careContextBlock: block,
+  it('sweeps instructions, messages, every registered tool result, and exceptions', async () => {
+    const CANARY = 'Persona Canary Única';
+    const session = new RedactionSession({
+      patterns: argentina.identifierPatterns,
+      seedTokens: new Map([['«CANARY_1»', CANARY]]),
     });
 
+    for (const tool of allTools) {
+      const calls: GenerateOptions[] = [];
+      let round = 0;
+      const provider: ProviderAdapter = {
+        async generate(options) {
+          calls.push(options);
+          round += 1;
+          return round === 1
+            ? { text: null, toolCalls: [{ id: 'c1', name: tool.name, arguments: {} }], state: null }
+            : { text: 'ok', toolCalls: [], state: null };
+        },
+      };
+      await runChatLoop({
+        provider,
+        pack: argentina,
+        session,
+        instructions: `Instrucciones para ${CANARY}`,
+        messages: [{ role: 'user', content: `Mensaje de ${CANARY}` }],
+        executeTool: async () => ({ echoed: CANARY }),
+      });
+      expect(JSON.stringify(calls), `${tool.name} leaked the canary`).not.toContain(CANARY);
+    }
+
+    const errors: GenerateOptions[] = [];
+    let errorRound = 0;
     await runChatLoop({
-      provider,
+      provider: {
+        async generate(options) {
+          errors.push(options);
+          errorRound += 1;
+          return errorRound === 1
+            ? { text: null, toolCalls: [{ id: 'e1', name: 'read_email', arguments: {} }], state: null }
+            : { text: 'ok', toolCalls: [], state: null };
+        },
+      },
       pack: argentina,
-      instructions: systemPrompt,
-      messages: [{ role: 'user', content: '¿Qué dice la última nota?' }],
-      tools: toToolSpecs(allTools),
-      // ToolContext WITHOUT a session — the legacy tool path can't sweep the name.
-      executeTool: createToolExecutor(allTools, { userId: FIXTURE_IDS.user, repos, pack: argentina }),
-      // no session — the sink is off
+      session,
+      instructions: 'safe',
+      messages: [{ role: 'user', content: 'safe' }],
+      executeTool: async () => {
+        throw new Error(`falló para ${CANARY}`);
+      },
     });
-
-    // DNI is still caught by the tool-level regex sweep…
-    expect(provider.received(DNI)).toBe(false);
-    // …but the NAME leaks — this is the bug the safe path closes.
-    expect(provider.received(NAME)).toBe(true);
-    // And the developer was warned that a patient context ran unprotected.
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('KRK_NO_SESSION'));
-    warn.mockRestore();
+    expect(JSON.stringify(errors)).not.toContain(CANARY);
   });
 
   it('cross-session identity: the note-text name maps to the SAME token as the patient field', async () => {

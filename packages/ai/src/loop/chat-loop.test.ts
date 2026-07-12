@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { argentina } from '@kerkit/pack-argentina';
+import { RedactionSession } from '@kerkit/core';
 import { runChatLoop } from './chat-loop.js';
 import type { GenerateOptions, ProviderAdapter, ProviderTurn } from '../messages.js';
 
@@ -22,6 +23,7 @@ const BASE = {
   pack: argentina,
   instructions: 'test',
   messages: [{ role: 'user' as const, content: 'hola' }],
+  session: new RedactionSession({ patterns: argentina.identifierPatterns }),
 };
 
 describe('runChatLoop', () => {

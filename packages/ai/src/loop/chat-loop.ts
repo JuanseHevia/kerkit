@@ -6,6 +6,8 @@ import type {
   ToolCallRequest,
   ToolCallResult,
   ToolSpec,
+  RedactedText,
+  SafeChatMessage,
 } from '../messages.js';
 
 export interface ExecutedToolCall {
@@ -48,22 +50,12 @@ export interface ChatLoopOptions {
    * free-text names are NOT redacted (a one-time warning fires if a patient
    * context is detected).
    */
-  session?: RedactionSession;
+  session: RedactionSession;
 }
 
-let warnedMissingSession = false;
-
-/** One-time nudge: patient context present (placeholder tokens) but no session. */
-function warnIfUnprotected(instructions: string, session?: RedactionSession): void {
-  if (session || warnedMissingSession) return;
-  if (/«[^»]+»/.test(instructions)) {
-    warnedMissingSession = true;
-    console.warn(
-      '[KRK_NO_SESSION] kerkit: runChatLoop received a patient context but no RedactionSession — ' +
-        'free-text names in tool output and messages will NOT be redacted. ' +
-        'Use createRedactedChat or pass { session }.',
-    );
-  }
+/** The brand is intentionally minted only inside the provider-bound sink. */
+function safe(text: string): RedactedText {
+  return text as RedactedText;
 }
 
 /**
@@ -77,14 +69,12 @@ export async function runChatLoop(options: ChatLoopOptions): Promise<ChatLoopRes
   const executed: ExecutedToolCall[] = [];
   const session = options.session;
 
-  warnIfUnprotected(options.instructions, session);
-
   // Instructions and message history are constant across rounds — sweep once.
   // Never mutate caller-owned arrays: build fresh copies.
-  const instructions = session ? session.sweep(options.instructions) : options.instructions;
-  const input: ChatMessage[] = session
-    ? options.messages.map((m) => ({ ...m, content: session.sweep(m.content) }))
-    : options.messages;
+  const instructions = safe(await session.sweepAsync(options.instructions));
+  const input: SafeChatMessage[] = await Promise.all(
+    options.messages.map(async (m) => ({ ...m, content: safe(await session.sweepAsync(m.content)) })),
+  );
 
   let state: unknown;
   let toolResults: ToolCallResult[] | undefined;
@@ -128,7 +118,7 @@ export async function runChatLoop(options: ChatLoopOptions): Promise<ChatLoopRes
       toolResults.push({
         id: call.id,
         name: call.name,
-        output: session ? session.sweep(rawOutput) : rawOutput,
+        output: safe(await session.sweepAsync(rawOutput)),
       });
     }
 

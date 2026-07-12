@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import type { LocalePack } from '@kerkit/core';
+import type { LocalePack, RedactionExplain, RedactionSession } from '@kerkit/core';
 import type { ExternalSources, KerkitRepositories } from '../repositories.js';
+import type { RedactedText } from '../messages.js';
 import type { ToolDefinition, ToolResult } from './types.js';
 
 /**
@@ -34,6 +35,19 @@ export interface RegisterToolsOptions {
   pack: Pick<LocalePack, 'identifierPatterns'>;
   external?: ExternalSources;
   userMode: UserMode;
+  /** Build or load the request/conversation session after authenticating the user. */
+  createSession(input: { userId: string; toolName: string }): RedactionSession | Promise<RedactionSession>;
+  /** Trusted app-side sidecar. Original values are never added to MCP content. */
+  onRedaction?(input: {
+    userId: string;
+    toolName: string;
+    tokens: ReadonlyMap<string, string>;
+    explain: RedactionExplain;
+  }): void | Promise<void>;
+}
+
+function safeStatic(text: string): RedactedText {
+  return text as RedactedText;
 }
 
 /**
@@ -80,19 +94,37 @@ export function registerKerkitTools(
             content: [
               {
                 type: 'text' as const,
-                text: `Error: tool ${tool.name} requires an authenticated user id.`,
+                text: safeStatic(`Error: tool ${tool.name} requires an authenticated user id.`),
               },
             ],
             isError: true,
           };
         }
 
-        return tool.handler(toolParams, {
+        const session = await options.createSession({ userId, toolName: tool.name });
+        const raw = await tool.handler(toolParams, {
           userId,
           repos: options.repos,
           pack: options.pack,
           external: options.external,
+          session,
         });
+        const result: ToolResult = {
+          ...raw,
+          content: await Promise.all(
+            raw.content.map(async (item) => ({
+              ...item,
+              text: (await session.sweepAsync(item.text)) as RedactedText,
+            })),
+          ),
+        };
+        await options.onRedaction?.({
+          userId,
+          toolName: tool.name,
+          tokens: session.tokenToValue(),
+          explain: session.explain(),
+        });
+        return result;
       },
     );
   }

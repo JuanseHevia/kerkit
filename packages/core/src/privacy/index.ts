@@ -30,6 +30,22 @@ export {
 } from './redaction.js';
 
 export {
+  RegexPiiDetector,
+  coercePiiPatterns,
+  detectPiiSpans,
+  normalizeForPii,
+  replacePiiSpans,
+  resolvePiiSpans,
+  type NormalizedText,
+  type PiiConfidence,
+  type PiiCorpusCase,
+  type PiiDetector,
+  type PiiPattern,
+  type PiiSpan,
+  type PiiType,
+} from './detector.js';
+
+export {
   RedactionSession,
   DEFAULT_REDACTION_POLICY,
   type RedactionPolicy,

@@ -1,4 +1,5 @@
 import type { Classification, DataClass } from './classification.js';
+import { coercePiiPatterns, detectPiiSpans, replacePiiSpans, type PiiPattern } from './detector.js';
 
 export interface RedactEntityOptions<T> {
   /**
@@ -115,7 +116,7 @@ export const SWEEP_PLACEHOLDER = '«REDACTADO»';
  */
 export function sweepText(
   text: string,
-  patterns: readonly RegExp[],
+  patterns: readonly (PiiPattern | RegExp)[],
   knownValues: ReadonlyMap<string, string> = new Map(),
 ): SweepResult {
   let swept = text;
@@ -129,16 +130,9 @@ export function sweepText(
     }
   }
 
-  for (const pattern of patterns) {
-    const global = new RegExp(
-      pattern.source,
-      pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g',
-    );
-    swept = swept.replace(global, (match) => {
-      matches.push(match);
-      return SWEEP_PLACEHOLDER;
-    });
-  }
+  const spans = detectPiiSpans(swept, coercePiiPatterns(patterns));
+  for (const span of spans) matches.push(swept.slice(span.start, span.end));
+  swept = replacePiiSpans(swept, spans, SWEEP_PLACEHOLDER);
 
   return { text: swept, matches };
 }

@@ -63,8 +63,8 @@ export class ContextAssembler {
        * three (a name in a note becomes the same placeholder as the patient
        * field). Prefer `createRedactedChat`, which wires this for you.
        */
-      session?: RedactionSession;
-    } = {},
+      session: RedactionSession;
+    },
   ): Promise<AssembledContext> {
     const ordered = [...this.sources].sort((a, b) => a.priority - b.priority);
 
@@ -75,7 +75,7 @@ export class ContextAssembler {
     const session = opts.session;
     // Without a session, accumulate locally (seeded with knownTokens). With a
     // session, snapshot its map after redaction (below) — it owns the tokens.
-    const redactionMap = new Map<string, string>(session ? [] : (opts.knownTokens ?? []));
+    const redactionMap = new Map<string, string>();
     const reports: SectionReport[] = [];
     const blocks: string[] = [];
 
@@ -85,18 +85,13 @@ export class ContextAssembler {
       const lines: string[] = [];
 
       for (const item of included) {
-        const { redacted, tokens } = session
-          ? session.redactEntity(item, source.classification, {
-              entityKind: source.key,
-              allowSensitiveFields: source.allowSensitiveFields,
-            })
-          : redactEntityForLlm(item, source.classification, {
-              allowSensitiveFields: source.allowSensitiveFields,
-            });
+        const { redacted, tokens } = session.redactEntity(item, source.classification, {
+          entityKind: source.key,
+          allowSensitiveFields: source.allowSensitiveFields,
+        });
         tokenizedFields += tokens.size;
         // Without a session, accumulate into the local map (the session owns
         // its own map, exposed via tokenToValue()).
-        if (!session) for (const [token, value] of tokens) redactionMap.set(token, value);
         lines.push(`- ${source.formatItem(redacted)}`);
       }
 
@@ -120,16 +115,10 @@ export class ContextAssembler {
     const joined = blocks.join('\n\n');
     let contextText: string;
     let sweptMatches: number;
-    if (session) {
-      const before = session.explain().sweptMatches;
-      contextText = session.sweep(joined);
-      sweptMatches = session.explain().sweptMatches - before;
-      for (const [token, value] of session.tokenToValue()) redactionMap.set(token, value);
-    } else {
-      const swept = sweepText(joined, this.options.pack.identifierPatterns ?? [], redactionMap);
-      contextText = swept.text;
-      sweptMatches = swept.matches.length;
-    }
+    const before = session.explain().sweptMatches;
+    contextText = await session.sweepAsync(joined);
+    sweptMatches = session.explain().sweptMatches - before;
+    for (const [token, value] of session.tokenToValue()) redactionMap.set(token, value);
 
     return {
       contextText,

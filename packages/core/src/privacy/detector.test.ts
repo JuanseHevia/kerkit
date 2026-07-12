@@ -1,0 +1,82 @@
+import { describe, expect, it, vi } from 'vitest';
+import fc from 'fast-check';
+import type { Classification } from './classification.js';
+import {
+  detectPiiSpans,
+  normalizeForPii,
+  replacePiiSpans,
+  resolvePiiSpans,
+  type PiiPattern,
+} from './detector.js';
+import { redactEntityForLlm, SWEEP_PLACEHOLDER } from './redaction.js';
+import { RedactionSession } from './session.js';
+
+const DNI: PiiPattern = {
+  id: 'test-dni',
+  type: 'dni',
+  confidence: 'high',
+  pattern: /DNI\s*:?\s*\d{8}/i,
+};
+
+describe('PII normalization and spans', () => {
+  it('normalizes NFKC and removes zero-width text with source offsets', () => {
+    const source = 'x DNI １２\u200B３４５６７８ y';
+    const normalized = normalizeForPii(source);
+    expect(normalized.text).toBe('x DNI 12345678 y');
+    const spans = detectPiiSpans(source, [DNI]);
+    expect(source.slice(spans[0].start, spans[0].end)).toBe('DNI １２\u200B３４５６７８');
+    expect(replacePiiSpans(source, spans, SWEEP_PLACEHOLDER)).toBe(`x ${SWEEP_PLACEHOLDER} y`);
+  });
+
+  it('resolves overlaps by confidence, then longest span', () => {
+    const spans = resolvePiiSpans([
+      { start: 0, end: 12, type: 'unknown', confidence: 'heuristic' },
+      { start: 4, end: 12, type: 'dni', confidence: 'high' },
+      { start: 20, end: 24, type: 'unknown', confidence: 'high' },
+      { start: 20, end: 26, type: 'email', confidence: 'high' },
+    ]);
+    expect(spans).toEqual([
+      { start: 4, end: 12, type: 'dni', confidence: 'high' },
+      { start: 20, end: 26, type: 'email', confidence: 'high' },
+    ]);
+  });
+
+  it('preserves valid source ranges for arbitrary Unicode input', () => {
+    fc.assert(
+      fc.property(fc.string(), (value) => {
+        const normalized = normalizeForPii(value);
+        return normalized.offsets.every(
+          (offset) => offset.start >= 0 && offset.end > offset.start && offset.end <= value.length,
+        );
+      }),
+    );
+  });
+});
+
+describe('structural redaction properties', () => {
+  it('never leaves a direct identifier in serialized output', () => {
+    fc.assert(
+      fc.property(fc.string({ minLength: 1 }), (identifier) => {
+        const entity = { identifier };
+        const classification: Classification<typeof entity> = {
+          identifier: 'direct-identifier',
+        };
+        const result = redactEntityForLlm(entity, classification);
+        return !Object.values(result.redacted).some((value) => value === identifier);
+      }),
+    );
+  });
+
+  it('supports async detectors and fails closed when one rejects', async () => {
+    const session = new RedactionSession({
+      detectors: [{ detect: async () => [{ start: 0, end: 6, type: 'unknown', confidence: 'high' }] }],
+    });
+    expect(await session.sweepAsync('secret value')).toBe(`${SWEEP_PLACEHOLDER} value`);
+
+    const broken = new RedactionSession({ detectors: [{ detect: async () => { throw new Error('boom'); } }] });
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await broken.sweepAsync('raw secret')).toBe(SWEEP_PLACEHOLDER);
+    expect(broken.explain().failClosed).toBe(1);
+    spy.mockRestore();
+  });
+});

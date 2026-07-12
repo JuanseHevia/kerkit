@@ -8,6 +8,7 @@ export { strings } from './strings.js';
 export { insurers } from './insurers.js';
 export { signalPatterns } from './signal-patterns.js';
 export { identifierPatterns } from './identifiers.js';
+export { ARGENTINA_PII_CORPUS_VERSION, argentinaPiiCorpusV1 } from './pii-corpus.js';
 
 /**
  * The Argentina locale pack — the reference implementation of kerkit's
