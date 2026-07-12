@@ -52,7 +52,8 @@ export async function readmeQuickstart(): Promise<string> {
     tools: allTools, // the nine caretaker tools
   });
 
-  // The redacted caretaker context window, with a transparency report.
+  // Optional inspection of the redacted caretaker context window. respond()
+  // assembles a fresh context window itself before calling the provider.
   const ctx = await chat.assembleContext();
   ctx.explain(); // exactly what the model will see — show it to the user
 

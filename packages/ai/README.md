@@ -37,9 +37,10 @@ const chat = createRedactedChat({
   tools: allTools, // the nine caretaker tools
 });
 
-// The redacted context window, with a transparency report.
+// Inspect the redacted context window and its transparency report. This call is
+// optional; respond() assembles a fresh context window automatically.
 const ctx = await chat.assembleContext();
-ctx.contextText; // the ONLY thing that reaches the model
+ctx.contextText; // the application context portion sent to the model
 ctx.explain(); // what was included / excluded / tokenized — show it to the user
 
 // One assistant turn. Free-text names in tool output are swept at the sink.
@@ -50,7 +51,7 @@ message; // model answer (see the leak-check caveat below)
 redaction?.tokensAllocated; // observability: what the sink tokenized this turn
 ```
 
-That single call covers **patient, repositories, sources, tools, provider, context assembly, and one response** — with the session already wired through all of them. Pass `history` to `respond` to continue a conversation; read `chat.session.tokenToValue()` to rehydrate tokens back into real values in your UI.
+That single `respond()` call covers **patient, repositories, sources, tools, provider, context assembly, and one response** — with the session already wired through all of them. Pass `history` to continue a conversation; read `chat.session.tokenToValue()` to rehydrate tokens back into real values in your UI. Call `assembleContext()` separately only when you want to inspect its transparency report before responding.
 
 > This quickstart is a CI compile gate: [`src/readme-quickstart.example.ts`](./src/readme-quickstart.example.ts) type-checks the same call under `npm run lint`, so the snippet can't silently drift from the API.
 

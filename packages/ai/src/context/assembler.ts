@@ -1,4 +1,3 @@
-import { redactEntityForLlm, sweepText } from '@kerkit/core';
 import type { LocalePack, RedactionSession } from '@kerkit/core';
 import type { ContextSource } from './source.js';
 
@@ -51,13 +50,6 @@ export class ContextAssembler {
     userId: string,
     opts: {
       /**
-       * Tokens already known to the app (e.g. from buildPatientContextBlock),
-       * so mentions of those values inside free text get swept to the same
-       * placeholders. Pass them — names hide in note contents. Ignored when
-       * `session` is supplied (the session already carries them).
-       */
-      knownTokens?: ReadonlyMap<string, string>;
-      /**
        * Shared request-scoped session. Pass the SAME instance you gave
        * `buildPatientContextBlock` and `runChatLoop` so tokens dedup across all
        * three (a name in a note becomes the same placeholder as the patient
@@ -73,8 +65,6 @@ export class ContextAssembler {
     );
 
     const session = opts.session;
-    // Without a session, accumulate locally (seeded with knownTokens). With a
-    // session, snapshot its map after redaction (below) — it owns the tokens.
     const redactionMap = new Map<string, string>();
     const reports: SectionReport[] = [];
     const blocks: string[] = [];
@@ -90,8 +80,6 @@ export class ContextAssembler {
           allowSensitiveFields: source.allowSensitiveFields,
         });
         tokenizedFields += tokens.size;
-        // Without a session, accumulate into the local map (the session owns
-        // its own map, exposed via tokenToValue()).
         lines.push(`- ${source.formatItem(redacted)}`);
       }
 

@@ -66,6 +66,8 @@ describe('Layer-0 canary — the provider sink (A1)', () => {
     expect(provider.calls.length).toBeGreaterThanOrEqual(2);
     expect(provider.received(NAME)).toBe(false); // non-regex name — known-value sweep
     expect(provider.received(DNI)).toBe(false); // regex sweep
+    expect(provider.calls[0].instructions).toContain('<context_window>');
+    expect(provider.calls[0].instructions).toContain('NOTAS DEL CUIDADOR');
     // And the observability surface is populated.
     // (the last respond() call carries the session's explain())
   });

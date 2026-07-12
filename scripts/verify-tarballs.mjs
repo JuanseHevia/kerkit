@@ -163,8 +163,15 @@ ok('installed all five tarballs + peers');
 
 console.log('\n[5/6] Strict type-check (skipLibCheck: false)…');
 const smoke = `// Import the main + documented subpath entrypoints from the packed tarballs.
-import { RedactionSession } from '@kerkit/core';
-import argentina from '@kerkit/pack-argentina';
+import {
+  RedactionSession,
+  RegexPiiDetector,
+  detectPiiSpans,
+  normalizeForPii,
+  replacePiiSpans,
+  resolvePiiSpans,
+} from '@kerkit/core';
+import argentina, { ARGENTINA_PII_CORPUS_VERSION, argentinaPiiCorpusV1 } from '@kerkit/pack-argentina';
 import { ContextAssembler, buildSystemPrompt, runChatLoop, createRedactedChat } from '@kerkit/ai';
 import { zodObjectToJsonSchema, textResult } from '@kerkit/ai/mcp';
 import { OpenAIResponsesAdapter } from '@kerkit/ai/openai';
@@ -174,7 +181,14 @@ import { palette, spacing, durations } from '@kerkit/ui/tokens';
 
 const checks: Array<[string, boolean]> = [
   ['@kerkit/core RedactionSession', typeof RedactionSession === 'function'],
+  ['@kerkit/core RegexPiiDetector', typeof RegexPiiDetector === 'function'],
+  ['@kerkit/core detectPiiSpans', typeof detectPiiSpans === 'function'],
+  ['@kerkit/core normalizeForPii', typeof normalizeForPii === 'function'],
+  ['@kerkit/core replacePiiSpans', typeof replacePiiSpans === 'function'],
+  ['@kerkit/core resolvePiiSpans', typeof resolvePiiSpans === 'function'],
   ['@kerkit/pack-argentina default export', typeof argentina === 'object' && argentina !== null],
+  ['@kerkit/pack-argentina corpus version', ARGENTINA_PII_CORPUS_VERSION === 'es-ar-v1'],
+  ['@kerkit/pack-argentina corpus', Array.isArray(argentinaPiiCorpusV1) && argentinaPiiCorpusV1.length >= 20],
   ['@kerkit/ai ContextAssembler', typeof ContextAssembler === 'function'],
   ['@kerkit/ai buildSystemPrompt', typeof buildSystemPrompt === 'function'],
   ['@kerkit/ai runChatLoop', typeof runChatLoop === 'function'],

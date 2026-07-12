@@ -50,6 +50,19 @@ function safeStatic(text: string): RedactedText {
   return text as RedactedText;
 }
 
+async function sweepStructuredContent(
+  value: Record<string, unknown> | undefined,
+  session: RedactionSession,
+): Promise<Record<string, unknown> | undefined> {
+  if (!value) return undefined;
+  const swept = await session.sweepAsync(JSON.stringify(value));
+  try {
+    return JSON.parse(swept) as Record<string, unknown>;
+  } catch {
+    return { redacted: true };
+  }
+}
+
 /**
  * Register kerkit tools on an MCP server, preserving the userId-injection
  * pattern: in 'injected' mode a missing/empty `_userId` is a hard error —
@@ -101,16 +114,40 @@ export function registerKerkitTools(
           };
         }
 
-        const session = await options.createSession({ userId, toolName: tool.name });
-        const raw = await tool.handler(toolParams, {
-          userId,
-          repos: options.repos,
-          pack: options.pack,
-          external: options.external,
-          session,
-        });
+        let session: RedactionSession;
+        try {
+          session = await options.createSession({ userId, toolName: tool.name });
+        } catch {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: safeStatic('Error: redaction session initialization failed.'),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        let raw;
+        try {
+          raw = await tool.handler(toolParams, {
+            userId,
+            repos: options.repos,
+            pack: options.pack,
+            external: options.external,
+            session,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          raw = {
+            content: [{ type: 'text' as const, text: `Error: ${message}` }],
+            isError: true,
+          };
+        }
         const result: ToolResult = {
-          ...raw,
+          isError: raw.isError,
+          structuredContent: await sweepStructuredContent(raw.structuredContent, session),
           content: await Promise.all(
             raw.content.map(async (item) => ({
               ...item,
@@ -121,7 +158,7 @@ export function registerKerkitTools(
         await options.onRedaction?.({
           userId,
           toolName: tool.name,
-          tokens: session.tokenToValue(),
+          tokens: new Map(session.tokenToValue()),
           explain: session.explain(),
         });
         return result;

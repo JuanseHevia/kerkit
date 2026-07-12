@@ -64,6 +64,38 @@ describe('structural redaction properties', () => {
         const result = redactEntityForLlm(entity, classification);
         return !Object.values(result.redacted).some((value) => value === identifier);
       }),
+      { numRuns: 200 },
+    );
+  });
+
+  it('keeps tokens unique for distinct values and deduplicates repeats', () => {
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(fc.string({ minLength: 2 }), { minLength: 2, maxLength: 8 }),
+        (values) => {
+          const session = new RedactionSession();
+          const tokens = values.map(
+            (name) => session.redactEntity({ name }, { name: 'direct-identifier' }).redacted.name,
+          );
+          const repeated = session.redactEntity(
+            { name: values[0] },
+            { name: 'direct-identifier' },
+          ).redacted.name;
+          return new Set(tokens).size === values.length && repeated === tokens[0];
+        },
+      ),
+      { numRuns: 200 },
+    );
+  });
+
+  it('neutralizes arbitrary token-shaped user input', () => {
+    fc.assert(
+      fc.property(fc.string().map((value) => value.replace(/[«»]/g, '')), (value) => {
+        const session = new RedactionSession();
+        const swept = session.sweep(`prefix «${value}» suffix`);
+        return !swept.includes('«') && !swept.includes('»');
+      }),
+      { numRuns: 200 },
     );
   });
 

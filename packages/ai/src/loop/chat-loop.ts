@@ -23,11 +23,11 @@ export interface ChatLoopResult {
   rounds: number;
   /**
    * What the redaction session did at the sink — tokens allocated, sweep
-   * matches, fail-closed events. Present only when a `session` was passed.
+   * matches, and fail-closed events.
    * NOTE: the returned `message` is model-emitted and is NOT sink-swept; keep
    * your own output leak-check.
    */
-  redaction?: RedactionExplain;
+  redaction: RedactionExplain;
 }
 
 export interface ChatLoopOptions {
@@ -43,12 +43,10 @@ export interface ChatLoopOptions {
   /** Observe each executed call (logging, telemetry, write_note tracking…). */
   onToolCall?: (call: ExecutedToolCall) => void;
   /**
-   * Shared request-scoped session. When passed, every application-originated
+   * Shared request-scoped session. Every application-originated
    * string (instructions, message history, tool output, tool errors) is swept
    * at the provider boundary. Pass the SAME instance used for context assembly
-   * and the patient block — `createRedactedChat` wires all three. Omit it and
-   * free-text names are NOT redacted (a one-time warning fires if a patient
-   * context is detected).
+   * and the patient block. `createRedactedChat` wires all three.
    */
   session: RedactionSession;
 }
@@ -94,7 +92,7 @@ export async function runChatLoop(options: ChatLoopOptions): Promise<ChatLoopRes
         message: turn.text ?? getCopy(options.pack, 'assistant.fallback.empty'),
         toolCalls: executed.length > 0 ? executed : undefined,
         rounds: round,
-        redaction: session?.explain(),
+        redaction: session.explain(),
       };
     }
 
@@ -129,6 +127,6 @@ export async function runChatLoop(options: ChatLoopOptions): Promise<ChatLoopRes
     message: getCopy(options.pack, 'assistant.fallback.toolRoundsExhausted'),
     toolCalls: executed.length > 0 ? executed : undefined,
     rounds: maxRounds,
-    redaction: session?.explain(),
+    redaction: session.explain(),
   };
 }

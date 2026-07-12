@@ -1,4 +1,3 @@
-import { redactEntityForLlm, sweepText } from '@kerkit/core';
 import type { Classification } from '@kerkit/core';
 import type { ToolContext, RawToolResult } from './types.js';
 

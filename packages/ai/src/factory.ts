@@ -83,20 +83,26 @@ export function createRedactedChat(options: RedactedChatOptions): RedactedChat {
   const executeTool = tools.length > 0 ? createToolExecutor(tools, toolContext) : undefined;
   const toolSpecs = tools.length > 0 ? toToolSpecs(tools) : undefined;
 
+  const assembleContext = async (): Promise<AssembledContext> => {
+    const assembler = new ContextAssembler({ pack: options.pack });
+    for (const source of options.sources ?? []) assembler.add(source);
+    return assembler.assemble(options.userId, { session });
+  };
+
   return {
     session,
     systemPrompt,
-    async assembleContext(): Promise<AssembledContext> {
-      const assembler = new ContextAssembler({ pack: options.pack });
-      for (const source of options.sources ?? []) assembler.add(source);
-      return assembler.assemble(options.userId, { session });
-    },
+    assembleContext,
     async respond({ message, history }): Promise<ChatLoopResult> {
+      const context = await assembleContext();
+      const instructions = context.contextText
+        ? `${systemPrompt}\n\n<context_window>\n${context.contextText}\n</context_window>`
+        : systemPrompt;
       const messages: ChatMessage[] = [...(history ?? []), { role: 'user', content: message }];
       return runChatLoop({
         provider: options.provider,
         pack: options.pack,
-        instructions: systemPrompt,
+        instructions,
         messages,
         tools: toolSpecs,
         executeTool,
