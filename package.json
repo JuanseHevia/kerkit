@@ -24,7 +24,7 @@
     "demo": "node scripts/demo.mjs",
     "build:demo": "npm run build && esbuild scripts/demo.mjs --bundle --platform=node --format=esm --target=node20 --minify --legal-comments=none --outfile=scripts/demo.bundle.mjs",
     "changeset": "changeset",
-    "version-packages": "changeset version",
+    "version-packages": "changeset version && npm install --package-lock-only --ignore-scripts --no-audit --no-fund",
     "release": "turbo build && changeset publish",
     "verify-publish": "node scripts/verify-publish.mjs",
     "release:dry-run": "turbo build && node scripts/verify-publish.mjs"
