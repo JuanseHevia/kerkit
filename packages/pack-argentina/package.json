@@ -1,6 +1,6 @@
 {
   "name": "@kerkit/pack-argentina",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Argentina locale pack for kerkit: es-AR strings (voseo), obra social model, email signal patterns, DNI/CUIL redaction rules, and Ley 25.326 guidance. The reference implementation of the LocalePack interface.",
   "license": "Apache-2.0",
   "repository": {
@@ -41,7 +41,7 @@
     "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
-    "@kerkit/core": "0.1.0"
+    "@kerkit/core": "0.2.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

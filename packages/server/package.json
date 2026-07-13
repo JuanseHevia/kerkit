@@ -1,6 +1,6 @@
 {
   "name": "@kerkit/server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Server toolkit for caretaker apps: Drizzle schema factory, repository implementations, privacy route factories (consent/export/delete) with audit, and cron job skeletons. Bring your own auth.",
   "license": "Apache-2.0",
   "repository": {
@@ -40,7 +40,7 @@
     "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
-    "@kerkit/core": "0.1.0",
+    "@kerkit/core": "0.2.0",
     "@types/express": "^5.0.0",
     "zod": "^3.24.0"
   },

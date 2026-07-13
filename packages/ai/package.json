@@ -1,6 +1,6 @@
 {
   "name": "@kerkit/ai",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "AI layer for caretaker apps: redaction-enforced context assembly, a provider-agnostic tool-calling loop, MCP tool toolkit, and prompt conventions. Privacy is enforced at the assembly boundary.",
   "license": "Apache-2.0",
   "repository": {
@@ -52,11 +52,11 @@
     "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
-    "@kerkit/core": "0.1.0",
+    "@kerkit/core": "0.2.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@kerkit/pack-argentina": "0.1.0",
+    "@kerkit/pack-argentina": "0.2.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   },
