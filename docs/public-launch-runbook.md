@@ -87,8 +87,10 @@ gh repo edit JuanseHevia/kerkit \
 
 The ruleset is committed at
 [`.github/rulesets/main-branch-protection.json`](../.github/rulesets/main-branch-protection.json).
-It requires a pull request, requires the three CI checks
-(`PII / secret scan (gitleaks)`, `Build & test`, `npm pack content audit`),
+It requires a pull request, requires the five CI checks
+(`PII / secret scan (gitleaks)`, `Build & test`,
+`Dependency audit (high/critical gate)`, `Packed-consumer verification`,
+`npm pack content audit`),
 blocks force pushes (`non_fast_forward`), and blocks branch deletion
 (`deletion`). `bypass_actors` is empty, so the rules apply to everyone — including
 the owner.
@@ -124,6 +126,8 @@ gh api --method PUT repos/JuanseHevia/kerkit/branches/main/protection \
   -f 'required_status_checks[strict]=true' \
   -f 'required_status_checks[contexts][]=PII / secret scan (gitleaks)' \
   -f 'required_status_checks[contexts][]=Build & test' \
+  -f 'required_status_checks[contexts][]=Dependency audit (high/critical gate)' \
+  -f 'required_status_checks[contexts][]=Packed-consumer verification' \
   -f 'required_status_checks[contexts][]=npm pack content audit' \
   -f 'required_pull_request_reviews[required_approving_review_count]=0' \
   -F 'enforce_admins=true' \
@@ -149,7 +153,8 @@ gh run list --workflow ci.yml --limit 1
 gh run watch "$(gh run list --workflow ci.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
 ```
 
-All three jobs must pass: **PII / secret scan (gitleaks)**, **Build & test**,
+All five jobs must pass: **PII / secret scan (gitleaks)**, **Build & test**,
+**Dependency audit (high/critical gate)**, **Packed-consumer verification**,
 **npm pack content audit**.
 
 ## Step 6 — Anonymous `npx` smoke test

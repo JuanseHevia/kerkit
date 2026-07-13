@@ -23,6 +23,11 @@ ENV PORT=3010
 # Copy the whole built tree so the node_modules workspace symlinks stay intact.
 COPY --from=build /app ./
 
+# Drop privileges: run as the image's built-in unprivileged `node` user (uid
+# 1000) instead of root. The tree is world-readable, the store is in-memory,
+# and 3010 is unprivileged, so nothing here needs root.
+USER node
+
 EXPOSE 3010
 # Serves the built SPA + /api on the same port. Mock provider unless
 # OPENAI_API_KEY is set in the environment.
