@@ -1,6 +1,6 @@
 {
   "name": "@kerkit/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Entities, schemas, domain logic, and privacy primitives for building caretaker apps. Not a medical device; models caretaker-authored logistics data, not clinical records.",
   "license": "Apache-2.0",
   "repository": {

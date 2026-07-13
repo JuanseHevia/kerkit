@@ -1,7 +1,7 @@
 {
   "name": "kerkit-gallery",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "kerkit Showcase Gallery: a visual, container-runnable tour of the SDK — privacy-as-code redaction, a real tool-calling assistant, and the caretaker domain primitives. Synthetic persona, zero keys, offline by default.",
   "type": "module",
   "scripts": {
@@ -15,10 +15,10 @@
     "clean": "rm -rf server/dist web/dist"
   },
   "dependencies": {
-    "@kerkit/ai": "0.1.0",
-    "@kerkit/core": "0.1.0",
-    "@kerkit/pack-argentina": "0.1.0",
-    "@kerkit/server": "0.1.0",
+    "@kerkit/ai": "0.2.0",
+    "@kerkit/core": "0.2.0",
+    "@kerkit/pack-argentina": "0.2.0",
+    "@kerkit/server": "0.2.0",
     "express": "^5.1.0"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 {
   "name": "@kerkit/ui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "\"Calm Confidence\" design tokens and React Native components for caretaker apps. Tokens are framework-agnostic; components target React Native.",
   "license": "Apache-2.0",
   "repository": {
@@ -44,7 +44,7 @@
     "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
-    "@kerkit/core": "0.1.0"
+    "@kerkit/core": "0.2.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

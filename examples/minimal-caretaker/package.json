@@ -1,7 +1,7 @@
 {
   "name": "minimal-caretaker",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Minimal caretaker app server in demo mode: synthetic persona, scripted assistant, zero OAuth, no LLM key. Time-to-hello-world target: under 15 minutes.",
   "type": "module",
   "scripts": {
@@ -12,10 +12,10 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@kerkit/ai": "0.1.0",
-    "@kerkit/core": "0.1.0",
-    "@kerkit/pack-argentina": "0.1.0",
-    "@kerkit/server": "0.1.0",
+    "@kerkit/ai": "0.2.0",
+    "@kerkit/core": "0.2.0",
+    "@kerkit/pack-argentina": "0.2.0",
+    "@kerkit/server": "0.2.0",
     "express": "^5.1.0"
   },
   "devDependencies": {
