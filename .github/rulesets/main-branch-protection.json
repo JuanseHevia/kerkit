@@ -31,6 +31,8 @@
         "required_status_checks": [
           { "context": "PII / secret scan (gitleaks)" },
           { "context": "Build & test" },
+          { "context": "Dependency audit (high/critical gate)" },
+          { "context": "Packed-consumer verification" },
           { "context": "npm pack content audit" }
         ]
       }

@@ -1,0 +1,20 @@
+# Keep the SHA-pinned GitHub Actions current.
+#
+# The workflows pin every third-party (and first-party) action to a full commit
+# SHA so a moved tag can never inject code into a job that holds NPM_TOKEN /
+# id-token (see release.yml). Pinning trades away automatic patch pickup, so
+# Dependabot opens PRs that bump each pin to the next release's SHA — restoring
+# the update path without reopening the supply-chain hole.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore(actions)
+    groups:
+      # One PR per week for routine action bumps instead of one per action.
+      github-actions:
+        patterns:
+          - "*"
