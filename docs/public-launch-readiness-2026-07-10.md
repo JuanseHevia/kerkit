@@ -154,7 +154,7 @@ At the visibility flip:
 - decide whether GitHub Discussions is the support/community surface (currently disabled) or
   state clearly that Issues are the only supported channel;
 - enable branch protection/rulesets on `main` after the repo becomes public and require the
-  three CI jobs;
+  CI status checks defined in the ruleset;
 - verify Actions permissions and rerun CI after the visibility change;
 - create the first tagged GitHub release when npm packages exist;
 - avoid promising an issue-response SLA beyond what one maintainer can sustain.
